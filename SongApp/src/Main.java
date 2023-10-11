@@ -30,7 +30,7 @@ public class Main {
      * If command isn't recognised, it informs the user.
     */
     public static void takeCommand(List<Song> lines, Path path) {
-        //Quick explanation for going forward: Yes, I do make a new Scanner object in each context but I wanted to avoid using global variables as much as possible.
+        //Quick explanation for going forward: Yes, I do make a new Scanner object in each context but I wanted to avoid using global variables as much as possible. Each Scanner shall be closed to avoid memory leak.
         Scanner sc = new Scanner(System.in);
         System.out.println("Type \"help\" for command list");
         System.out.print(">> "); //Shows the user where to type, aesthetic choice
@@ -163,9 +163,13 @@ public class Main {
             try {
                 lines.add(new Song(song));
             }
-            catch (Exception e) {
+            catch (IOException e) {
                 validInput = false;
                 System.out.println("Invalid input, ensure correct formatting");
+            }
+            catch (NumberFormatException e) {
+                validInput = false;
+                System.out.println("Inalid input, Ensure play count is an integer");
             }
         } while(!validInput);
         //Applies changes
