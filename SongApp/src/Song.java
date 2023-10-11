@@ -1,12 +1,16 @@
 public class Song {
-    //Attributes as requested in requirements
-    private String name;
-    private String artist;
-    private int plays;
+    //Song attributes set to private as implementation of encapsulation to prevent accidental editing and increase maintainability
+    //Final as, after initialisation, they will have no requirement to change
+    private final String name;
+    private final String artist;
+    private final int plays;
+
+    /**Constructor takes string input, splits it and sets the attributes*/
     public Song(String line) {
-        //Constructor splits the line into its parts
+        //Split into name, artist and plays
         String[] deets = line.split(", ");
         //Validation for this section is done in the main class at instantiation
+        //Applies values
         this.name = deets[0];
         this.artist = deets[1];
         this.plays = Integer.parseInt(deets[2]);
@@ -24,4 +28,5 @@ public class Song {
     public int getPlays() {
         return plays;
     }
+    //No setters as these values have no requirement to be changed
 }

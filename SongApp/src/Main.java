@@ -26,8 +26,8 @@ public class Main {
         }
     }
 
-    /**Takes in the user input and executes the appopriate block of code
-     * If command isn't recognised, it informs the user
+    /**Takes in the user input and executes the appopriate block of code.
+     * If command isn't recognised, it informs the user.
     */
     public static void takeCommand(List<Song> lines, Path path) {
         //Quick explanation for going forward: Yes, I do make a new Scanner object in each context but I wanted to avoid using global variables as much as possible.
@@ -72,8 +72,8 @@ public class Main {
         sc.close();
     }
 
-    /**Reads all lines from the file and saves them to a Song list to be returned
-     * If input file is empty, an empty song list is returned
+    /**Reads all lines from the file and saves them to a Song list to be returned.
+     * If input file is empty, an empty song list is returned.
     */
     public static List<Song> getLines(File file, Path path) throws IOException {
         List<String> lines = Files.readAllLines(path, StandardCharsets.UTF_8);
@@ -86,8 +86,8 @@ public class Main {
         return songList;
     }
 
-    /**Prints all the currently stored songs
-     * If no songs stored, prints message and returns
+    /**Prints all the currently stored songs.
+     * If no songs stored, prints message and returns.
      */
     public static void printSongs(List<Song> lines) {
         //Checks if any songs stored
@@ -101,8 +101,8 @@ public class Main {
         }
     }
 
-    /**Loops over songs and prints if above plays threshold
-     * Otherwise displays message to user
+    /**Loops over songs and prints if above plays threshold.
+     * Otherwise displays message to user.
      */
     public static void printSongsOverNum(List<Song> lines, int minPlays) {
         boolean hasSongsOverMin = false; //OMG I WONDER WHAT THIS VARIABLE REPRESENTS
@@ -113,8 +113,9 @@ public class Main {
         //Message for user if no matches
         if(!hasSongsOverMin) System.out.println("No songs over specified minimum plays");
     }
+
+    /**Saves lines back to specified file.*/
     public static void updateFile(List<Song> lines, Path path) throws IOException{
-        //Saves lines back to file
         //Makes FileWriter object
         FileWriter fw = new FileWriter(path.getFileName().toString());
         //Loops through lines and formats them to be saved to file
@@ -125,8 +126,9 @@ public class Main {
         }
         fw.close();
     }
+
+    /**Prints all songs over specified play threshold.*/
     public static void playsOver(List<Song> lines) {
-        //Prints all songs over specified play threshold
         Scanner sc = new Scanner(System.in);
         boolean isntInt;
         int num;
@@ -147,8 +149,9 @@ public class Main {
         printSongsOverNum(lines, num);
         sc.close();
     }
+
+    /**Adds a song with specified details to the file.*/
     public static void add(List<Song> lines, Path path) {
-        //Adds a songs with specified details to the file
         Scanner sc = new Scanner(System.in);
         boolean validInput; //For validation
         do { //Loops until valid input
@@ -171,6 +174,11 @@ public class Main {
         System.out.println("Song added");
         sc.close();
     }
+
+    /**Removes a specified song from the song list
+     * If multiple songs with the same name have been added, it will remove only the first instance found in the file.
+     * If specified song isn't found, it loops and reprompts the user.
+    */
     public static void remove(List<Song> lines, Path path) {
         Scanner sc = new Scanner(System.in);
         boolean found = false; //Can you guess what needs to happen for this to become true?
@@ -179,7 +187,6 @@ public class Main {
             System.out.print(">>> ");
             String line = sc.nextLine();
             //Loops through to see if any songs matching the input are stored, then removes it.
-            //If, for some reason, you have added multiple songs with the same name, it will remove only the first instance found in the file
             for (Song thisSong : lines) {
                 if (thisSong.getName().equals(line)) {
                     lines.remove(thisSong);
