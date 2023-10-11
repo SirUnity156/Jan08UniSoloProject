@@ -25,6 +25,10 @@ public class Main {
             takeCommand(lines, path);
         }
     }
+
+    /**Takes in the user input and executes the appopriate block of code
+     * If command isn't recognised, it informs the user
+    */
     public static void takeCommand(List<Song> lines, Path path) {
         //Quick explanation for going forward: Yes, I do make a new Scanner object in each context but I wanted to avoid using global variables as much as possible.
         Scanner sc = new Scanner(System.in);
@@ -67,8 +71,11 @@ public class Main {
         }
         sc.close();
     }
+
+    /**Reads all lines from the file and saves them to a Song list to be returned
+     * If input file is empty, an empty song list is returned
+    */
     public static List<Song> getLines(File file, Path path) throws IOException {
-        //Reads all lines from the file and saves them to a Song list
         List<String> lines = Files.readAllLines(path, StandardCharsets.UTF_8);
         List<Song> songList = new ArrayList<Song>();
         if(!lines.isEmpty()) {
@@ -78,9 +85,12 @@ public class Main {
         }
         return songList;
     }
+
+    /**Prints all the currently stored songs
+     * If no songs stored, prints message and returns
+     */
     public static void printSongs(List<Song> lines) {
-        //Prints all the currently stored songs
-        //If no songs stored, prints message and returns
+        //Checks if any songs stored
         if(lines.isEmpty()) {
             System.out.println("No songs currently stored");
             return;
@@ -90,13 +100,17 @@ public class Main {
             System.out.println(song.getName());
         }
     }
+
+    /**Loops over songs and prints if above plays threshold
+     * Otherwise displays message to user
+     */
     public static void printSongsOverNum(List<Song> lines, int minPlays) {
-        //Loops over songs and prints if above plays threshold
         boolean hasSongsOverMin = false; //OMG I WONDER WHAT THIS VARIABLE REPRESENTS
         for (Song song: lines) {
+            //Iterates through and checks if song has sufficient plays
             if(song.getPlays() > minPlays) {System.out.println(song.getName()); hasSongsOverMin = true;}
         }
-        //Otherwise displays message
+        //Message for user if no matches
         if(!hasSongsOverMin) System.out.println("No songs over specified minimum plays");
     }
     public static void updateFile(List<Song> lines, Path path) throws IOException{
