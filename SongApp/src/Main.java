@@ -121,6 +121,7 @@ public class Main {
             }
         } while(isntInt);
         printSongsOverNum(lines, num);
+        sc.close();
     }
     public static void add(List<Song> lines, Path path) {
         Scanner sc = new Scanner(System.in);
@@ -143,6 +144,7 @@ public class Main {
         try {updateFile(lines, path);}
         catch(IOException ignored){}
         System.out.println("Song added");
+        sc.close();
     }
     public static void remove(List<Song> lines, Path path) {
         Scanner sc = new Scanner(System.in);
@@ -169,5 +171,6 @@ public class Main {
         try {updateFile(lines, path);}
         catch(IOException ignored){}
         System.out.println("Song removed");
+        sc.close();
     }
 }
