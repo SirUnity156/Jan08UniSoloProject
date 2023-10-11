@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Scanner;
 
 public class Main {
-    public static Scanner sc = new Scanner(System.in);
     public static void main(String[] args) throws IOException {
         //File path and file object instantiation
         Path path = Paths.get("SongList.txt");
@@ -28,6 +27,7 @@ public class Main {
     }
     public static void takeCommand(List<Song> lines, Path path) {
         //Quick explanation for going forward: Yes, I do make a new Scanner object in each context but I wanted to avoid using global variables as much as possible.
+        Scanner sc = new Scanner(System.in);
         System.out.println("Type \"help\" for command list");
         System.out.print(">> "); //Shows the user where to type, aesthetic choice
         String input = sc.nextLine();
@@ -65,6 +65,7 @@ public class Main {
                 System.out.println("Command not recognised");
                 break;
         }
+        sc.close();
     }
     public static List<Song> getLines(File file, Path path) throws IOException {
         //Reads all lines from the file and saves them to a Song list
@@ -90,27 +91,29 @@ public class Main {
         }
     }
     public static void printSongsOverNum(List<Song> lines, int minPlays) {
-        boolean hasSongs = false; //OMG I WONDER WHAT THIS VARIABLE REPRESENTS
         //Loops over songs and prints if above plays threshold
+        boolean hasSongsOverMin = false; //OMG I WONDER WHAT THIS VARIABLE REPRESENTS
         for (Song song: lines) {
-            if(song.getPlays() > minPlays) {System.out.println(song.getName()); hasSongs = true;}
+            if(song.getPlays() > minPlays) {System.out.println(song.getName()); hasSongsOverMin = true;}
         }
         //Otherwise displays message
-        if(!hasSongs) System.out.println("No songs over specified minimum plays");
+        if(!hasSongsOverMin) System.out.println("No songs over specified minimum plays");
     }
     public static void updateFile(List<Song> lines, Path path) throws IOException{
+        //Saves lines back to file
         //Makes FileWriter object
         FileWriter fw = new FileWriter(path.getFileName().toString());
         //Loops through lines and formats them to be saved to file
         for(int i = 0; i < lines.size(); i++) {
             String output = lines.get(i).getName() + ", " + lines.get(i).getArtist() + ", " + lines.get(i).getPlays();
-            if(i != lines.size()-1) output += "\n";
-            fw.write(output);
+            if(i != lines.size()-1) output += "\n"; //Added to ensure the last line doesn't have a return character at the end
+            fw.write(output); //Adds to file
         }
         fw.close();
     }
     public static void playsOver(List<Song> lines) {
         //Prints all songs over specified play threshold
+        Scanner sc = new Scanner(System.in);
         boolean isntInt;
         int num;
         //Loops until valid input
@@ -128,9 +131,11 @@ public class Main {
             }
         } while(isntInt);
         printSongsOverNum(lines, num);
+        sc.close();
     }
     public static void add(List<Song> lines, Path path) {
         //Adds a songs with specified details to the file
+        Scanner sc = new Scanner(System.in);
         boolean validInput; //For validation
         do { //Loops until valid input
             validInput = true;
@@ -150,8 +155,10 @@ public class Main {
         try {updateFile(lines, path);}
         catch(IOException ignored){}
         System.out.println("Song added");
+        sc.close();
     }
     public static void remove(List<Song> lines, Path path) {
+        Scanner sc = new Scanner(System.in);
         boolean found = false; //Can you guess what needs to happen for this to become true?
         do { //Loops until valid input
             System.out.println("Enter song name");
@@ -175,5 +182,6 @@ public class Main {
         try {updateFile(lines, path);}
         catch(IOException ignored){}
         System.out.println("Song removed");
+        sc.close();
     }
 }
