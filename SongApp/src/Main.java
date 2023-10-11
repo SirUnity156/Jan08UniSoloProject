@@ -1,11 +1,13 @@
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.File;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
 
 public class Main {
     public static void main(String[] args) throws IOException {
@@ -30,32 +32,33 @@ public class Main {
         switch (sc.nextLine()) {
             case "all songs":
                 printSongs(lines);
-                return;
+                break;
 
             case "plays over":
                 playsOver(lines);
-                return;
+                break;
 
             case "add":
                 add(lines, path);
-                return;
+                break;
 
             case "remove":
                 remove(lines, path);
-                return;
+                break;
 
             case "help":
                 System.out.println("all songs - provides a list of all songs currently stored");
                 System.out.println("plays over - provides a list of all songs above a specified play count, will prompt you for minimum plays after command is entered");
                 System.out.println("add - adds a new song to the song list, will prompt you for song details after command is entered");
                 System.out.println("remove - removes a song from the song list, will prompt you for name of song to be removed after command is entered");
-                return;
+                break;
 
             default:
                 System.out.println("Command not recognised");
-                return;
+                break;
         }
-
+        sc.close();
+        return;
     }
     public static List<Song> getLines(File file, Path path) throws IOException {
         //Reads all lines from the file and saves them to a Song list
