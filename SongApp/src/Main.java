@@ -18,7 +18,7 @@ public class Main {
         //Creates a file if it isn't already present
         file.createNewFile();
 
-        while(true) { //I know while(true) is a bit naughty, but it works and doesn't cause any uncontrolled iteration
+        while(true) { //I know while(true) is a bit naughty, but it works and doesn't cause any uncontrolled iteration as the loop awaits user input for on every iteration
             //Read all lines
             List<Song> lines = getLines(file, path);
 
