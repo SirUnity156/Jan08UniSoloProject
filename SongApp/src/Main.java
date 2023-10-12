@@ -9,6 +9,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
+/*Planned Development
+"back" command - allows user to go back to the main interface if they have accidentally run a command
+"undo" command - undoes the last change to the file (Do this by storing the last state of the file and passing it to updateFile())
+"history" command - shows the user the last x number of commands executed (Do this by storing a command history file of last x number of commands and updating it after every command)
+*/
+
 public class Main {
     //Global Scanner variable
     //Wanted to avoid using global variables wherever possible but iterating over a local context containing a Scanner definition and references leads to issues regarding input reading
@@ -25,7 +31,6 @@ public class Main {
         while(true) { //I know while(true) is a bit naughty, but it works and doesn't cause any uncontrolled iteration as the loop awaits user input on every iteration
             //Read all lines
             List<Song> lines = getLines(file, path);
-
             takeCommand(lines, path);
         }
     }
@@ -34,10 +39,10 @@ public class Main {
      * If command isn't recognised, it informs the user.
     */
     public static void takeCommand(List<Song> lines, Path path) {
+        System.out.println("Main Command Interface");
         System.out.println("Type \"help\" for command list");
         System.out.print(">> "); //Shows the user where to type, aesthetic choice
-        String input = sc.nextLine();
-        switch (input) { //Takes input and selects appropriate execution block
+        switch (sc.nextLine().toLowerCase()) { //Takes input and selects appropriate execution block
             case "all songs":
                 //Prints all the currently stored songs
                 printSongs(lines);
@@ -50,12 +55,12 @@ public class Main {
 
             case "add":
                 //Adds a songs with specified details to the file
-                add(lines, path);
+                lines = add(lines, path);
                 break;
 
             case "remove":
                 //Removes a specified song from the file
-                remove(lines, path);
+                lines = remove(lines, path);
                 break;
 
             case "help":
@@ -71,6 +76,9 @@ public class Main {
                 System.out.println("Command not recognised");
                 break;
         }
+        try {updateFile(lines, path);}
+        catch(IOException ignored){}
+        System.out.println();
     }
 
     /**Reads all lines from the file and saves them to a Song list to be returned.
@@ -109,7 +117,10 @@ public class Main {
         boolean hasSongsOverMin = false; //OMG I WONDER WHAT THIS VARIABLE REPRESENTS
         for (Song song: lines) {
             //Iterates through and checks if song has sufficient plays
-            if(song.getPlays() > minPlays) {System.out.println(song.getName()); hasSongsOverMin = true;}
+            if(song.getPlays() > minPlays) {
+                System.out.println(song.getName());
+                hasSongsOverMin = true;
+            }
         }
         //Message for user if no matches
         if(!hasSongsOverMin) System.out.println("No songs over specified minimum plays");
@@ -150,7 +161,7 @@ public class Main {
     }
 
     /**Adds a song with specified details to the file.*/
-    public static void add(List<Song> lines, Path path) {
+    public static List<Song> add(List<Song> lines, Path path) {
         boolean validInput; //For validation
         do { //Loops until valid input
             validInput = true;
@@ -171,16 +182,15 @@ public class Main {
             }
         } while(!validInput);
         //Applies changes
-        try {updateFile(lines, path);}
-        catch(IOException ignored){}
         System.out.println("Song added");
+        return lines;
     }
 
     /**Removes a specified song from the song list
      * If multiple songs with the same name have been added, it will remove only the first instance found in the file.
      * If specified song isn't found, it loops and reprompts the user.
     */
-    public static void remove(List<Song> lines, Path path) {
+    public static List<Song> remove(List<Song> lines, Path path) {
         boolean found = false; //Can you guess what needs to happen for this to become true?
         do { //Loops until valid input
             System.out.println("Enter song name");
@@ -200,9 +210,8 @@ public class Main {
             }
         } while(!found);
         //Applies changes
-        try {updateFile(lines, path);}
-        catch(IOException ignored){}
         System.out.println("Song removed");
+        return lines;
     }
     
     /**Takes string input, splits it and sets the fields*/
