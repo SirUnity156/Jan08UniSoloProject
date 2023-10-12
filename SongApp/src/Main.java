@@ -10,15 +10,15 @@ import java.util.List;
 import java.util.Scanner;
 
 /*Planned Development
-"back" command - allows user to go back to the main interface if they have accidentally run a command
+"back" command - allows user to go back to the main interface if they have accidentally given an input and been taken to a secondary interface
 "undo" command - undoes the last change to the file (Do this by storing the last state of the file and passing it to updateFile())
 "history" command - shows the user the last x number of commands executed (Do this by storing a command history file of last x number of commands and updating it after every command)
 */
 
 public class Main {
     //Global Scanner variable
-    //Wanted to avoid using global variables wherever possible but iterating over a local context containing a Scanner definition and references leads to issues regarding input reading
-    //Global Scanner also prevents the need for repeated declaration and de-allocation lines
+    //Wanted to avoid using global variables wherever possible but iterating over a local context containing Scanner definition and references leads to issues regarding input reading
+    //Global Scanner also prevents the need for repeated declaration and de-allocation
     static Scanner sc = new Scanner(System.in);
     public static void main(String[] args) throws IOException {
         //File path and file object instantiation
@@ -31,11 +31,12 @@ public class Main {
         while(true) { //I know while(true) is a bit naughty, but it works and doesn't cause any uncontrolled iteration as the loop awaits user input on every iteration
             //Read all lines
             List<Song> lines = getLines(file, path);
+
             takeCommand(lines, path);
         }
     }
 
-    /**Takes in the user input and executes the appopriate block of code.
+    /**Takes in the user input and executes the appropriate block of code.
      * If command isn't recognised, it informs the user.
     */
     public static void takeCommand(List<Song> lines, Path path) {
@@ -146,7 +147,7 @@ public class Main {
         //Loops until valid input
         do{
             num = 0;
-            isntInt = false; // Used for validation
+            isntInt = false; // Used in validation process
             System.out.println("Enter minimum plays");
             System.out.print(">> ");
             String input = sc.nextLine();
@@ -203,7 +204,6 @@ public class Main {
                     found = true; //Did you get it? Wow! That's very impressive.
                     break;
                 }
-
             }
             if (!found) {
                 System.out.println("Song not found");
