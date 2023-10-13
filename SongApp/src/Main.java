@@ -13,6 +13,7 @@ import java.util.Scanner;
 "back" command - allows user to go back to the main interface if they have accidentally given an input and been taken to a secondary interface
 "undo" command - undoes the last change to the file (Do this by storing the last state of the file and passing it to updateFile())
 "history" command - shows the user the last x number of commands executed (Do this by storing a command history file of last x number of commands and updating it after every command)
+If SongList.txt is not found in the project directory, it should display a message to the user to inform them that the file containing their saved songs could not be located and a new blank file has been generated for them
 */
 
 public class Main {
@@ -26,11 +27,13 @@ public class Main {
         File file = new File(path.getFileName().toString());
 
         //Creates a file if it isn't already present
+        //noinspection ResultOfMethodCallIgnored <--Translation for this: "Silence, IDE, trust me"
         file.createNewFile();
 
+        //noinspection InfiniteLoopStatement <--The warning was annoying me, so I had to remove it
         while(true) { //I know while(true) is a bit naughty, but it works and doesn't cause any uncontrolled iteration as the loop awaits user input on every iteration
             //Read all lines
-            List<Song> lines = getLines(file, path);
+            List<Song> lines = getLines(path);
 
             takeCommand(lines, path);
         }
@@ -40,41 +43,41 @@ public class Main {
      * If command isn't recognised, it informs the user.
     */
     public static void takeCommand(List<Song> lines, Path path) {
-        System.out.println("Main Command Interface");
+        System.out.println("Main Menu");
         System.out.println("Type \"help\" for command list");
         System.out.print(">> "); //Shows the user where to type, aesthetic choice
         switch (sc.nextLine().toLowerCase()) { //Takes input and selects appropriate execution block
-            case "all songs":
+            case "all_songs":
                 //Prints all the currently stored songs
                 printSongs(lines);
                 break;
 
-            case "plays over":
+            case "plays_over":
                 //Prints all songs over specified play threshold
                 playsOver(lines);
                 break;
 
             case "add":
                 //Adds a songs with specified details to the file
-                lines = add(lines, path);
+                lines = add(lines);
                 break;
 
             case "remove":
                 //Removes a specified song from the file
-                lines = remove(lines, path);
+                lines = remove(lines); //I don't know why my IDE claims that this function returns the same value it takes when I can see that the contents change. It's probably because I'm returning the same data structure, and it just hasn't seen that an element has been removed.
                 break;
 
             case "help":
                 //Describes features to user
-                System.out.println("all songs - provides a list of all songs currently stored");
-                System.out.println("plays over - provides a list of all songs above a specified play count, will prompt you for minimum plays after command is entered");
-                System.out.println("add - adds a new song to the song list, will prompt you for song details after command is entered");
-                System.out.println("remove - removes a song from the song list, will prompt you for name of song to be removed after command is entered");
+                System.out.println("all_songs - This command will show you all the songs you have currently stored");
+                System.out.println("plays_over - This command allows you to narrow down your list of songs to only those that have at least a certain number of plays");
+                System.out.println("add - This command allows you to add new songs into your stored list of songs. After entering this command, you will be asked for the details of the song");
+                System.out.println("remove - This command allows you to remove songs from your stored list of songs. After entering this command, you will be asked for the name of the song");
                 break;
 
             default:
                 //Executes if user enters unrecognised command
-                System.out.println("Command not recognised");
+                System.out.println("Sorry, I didn't recognise that command. Please ensure that everything is spelled as shown in the \"help\" menu");
                 break;
         }
         try {updateFile(lines, path);}
@@ -85,13 +88,11 @@ public class Main {
     /**Reads all lines from the file and saves them to a Song list to be returned.
      * If input file is empty, an empty song list is returned.
     */
-    public static List<Song> getLines(File file, Path path) throws IOException {
+    public static List<Song> getLines(Path path) throws IOException {
         List<String> lines = Files.readAllLines(path, StandardCharsets.UTF_8);
-        List<Song> songList = new ArrayList<Song>();
-        if(!lines.isEmpty()) {
-            for (String line : lines) {
-                songList.add(makeSongFromInput(line));
-            }
+        List<Song> songList = new ArrayList<>();
+        for (String line : lines) {
+            songList.add(makeSongFromInput(line));
         }
         return songList;
     }
@@ -112,7 +113,7 @@ public class Main {
     }
 
     /**Loops over songs and prints if above plays threshold.
-     * Otherwise displays message to user.
+     * Otherwise, displays message to user.
      */
     public static void printSongsOverNum(List<Song> lines, int minPlays) {
         boolean hasSongsOverMin = false; //OMG I WONDER WHAT THIS VARIABLE REPRESENTS
@@ -124,7 +125,7 @@ public class Main {
             }
         }
         //Message for user if no matches
-        if(!hasSongsOverMin) System.out.println("No songs over specified minimum plays");
+        if(!hasSongsOverMin) System.out.println("Sorry, there are no songs stored above your desired minimum plays");
     }
 
     /**Saves lines back to specified file.*/
@@ -148,21 +149,21 @@ public class Main {
         do{
             num = 0;
             isntInt = false; // Used in validation process
-            System.out.println("Enter minimum plays");
+            System.out.println("Please enter your desired minimum play count");
             System.out.print(">> ");
             String input = sc.nextLine();
             //Input validation
             try {num = Integer.parseInt(input);}
             catch (NumberFormatException e) {
                 isntInt = true;
-                System.out.println("Invalid input, enter an integer");
+                System.out.println("Sorry, it appears you have entered an invalid number. Please ensure you enter a positive whole number");
             }
         } while(isntInt);
         printSongsOverNum(lines, num);
     }
 
     /**Adds a song with specified details to the file.*/
-    public static List<Song> add(List<Song> lines, Path path) {
+    public static List<Song> add(List<Song> lines) {
         boolean validInput; //For validation
         do { //Loops until valid input
             validInput = true;
@@ -175,11 +176,11 @@ public class Main {
             }
             catch (IOException e) {
                 validInput = false;
-                System.out.println("Invalid input, ensure correct formatting");
+                System.out.println("Sorry, it appears you have entered the details in the incorrect format. Please ensure that you have written it as shown in the example format");
             }
             catch (NumberFormatException e) {
                 validInput = false;
-                System.out.println("Inalid input, Ensure play count is an integer");
+                System.out.println("Sorry, it appears you have entered an invalid number for the play count. Please ensure you enter a positive whole number");
             }
         } while(!validInput);
         //Applies changes
@@ -189,9 +190,9 @@ public class Main {
 
     /**Removes a specified song from the song list
      * If multiple songs with the same name have been added, it will remove only the first instance found in the file.
-     * If specified song isn't found, it loops and reprompts the user.
+     * If specified song isn't found, it loops and re-prompts the user.
     */
-    public static List<Song> remove(List<Song> lines, Path path) {
+    public static List<Song> remove(List<Song> lines) {
         boolean found = false; //Can you guess what needs to happen for this to become true?
         do { //Loops until valid input
             System.out.println("Enter song name");
@@ -221,8 +222,10 @@ public class Main {
         String[] details = line.split(", ");
         //Rest of validation for this section is done at function call
         if(details.length != 3) throw new IOException(); //Detects if user has inputted data incorrectly, I have decided to throw an IOException specifically since Exception is too broad and may lead to unintended exception catching
+        int playCount = Integer.parseInt(details[2]);
+        if(playCount < 0) throw new NumberFormatException(); // Ensuring the user entered a positive number (You can never trust the user)
         //Applies values
-        return new Song(details[0], details[1], Integer.parseInt(details[2]));
+        return new Song(details[0], details[1], playCount);
         //If integer parsing fails, the NumberFormatException is caught and the user is notified of their severe lapse in judgement
     }
 }
