@@ -37,6 +37,8 @@ public class Main {
 
             takeCommand(lines, path);
         }
+
+
     }
 
     /**Takes in the user input and executes the appropriate block of code.
@@ -59,12 +61,16 @@ public class Main {
 
             case "add":
                 //Adds a songs with specified details to the file
-                lines = add(lines);
+                List<Song> addTemp = add(lines);
+                if(addTemp == null) break; //add() returns null when user backs out
+                lines = addTemp;
                 break;
 
             case "remove":
                 //Removes a specified song from the file
-                lines = remove(lines); //I don't know why my IDE claims that this function returns the same value it takes when I can see that the contents change. It's probably because I'm returning the same data structure, and it just hasn't seen that an element has been removed.
+                List<Song> remTemp = remove(lines);
+                if(remTemp == null) break; //remove() returns null when user backs out
+                lines = remTemp;
                 break;
 
             case "help":
@@ -80,6 +86,7 @@ public class Main {
                 System.out.println("Sorry, I didn't recognise that command. Please ensure that everything is spelled as shown in the \"help\" menu");
                 break;
         }
+        //Apply changes to file
         try {updateFile(lines, path);}
         catch(IOException ignored){}
         System.out.println();
@@ -89,6 +96,7 @@ public class Main {
      * If input file is empty, an empty song list is returned.
     */
     public static List<Song> getLines(Path path) throws IOException {
+        //Reading all the files lines into a list
         List<String> lines = Files.readAllLines(path, StandardCharsets.UTF_8);
         List<Song> songList = new ArrayList<>();
         for (String line : lines) {
@@ -116,7 +124,7 @@ public class Main {
      * Otherwise, displays message to user.
      */
     public static void printSongsOverNum(List<Song> lines, int minPlays) {
-        boolean hasSongsOverMin = false; //OMG I WONDER WHAT THIS VARIABLE REPRESENTS
+        boolean hasSongsOverMin = false; //Used to know whether if any applicable songs exist
         for (Song song: lines) {
             //Iterates through and checks if song has sufficient plays
             if(song.getPlays() > minPlays) {
@@ -150,8 +158,10 @@ public class Main {
             num = 0;
             isntInt = false; // Used in validation process
             System.out.println("Please enter your desired minimum play count");
+            System.out.println("Type \"back\" to return to the main menu");
             System.out.print(">> ");
             String input = sc.nextLine();
+            if(input.equals("back")) return; //This ends the procedure early and returns to the main menu
             //Input validation
             try {num = Integer.parseInt(input);}
             catch (NumberFormatException e) {
@@ -168,17 +178,21 @@ public class Main {
         do { //Loops until valid input
             validInput = true;
             System.out.println("Enter song details in following format: name, artist, plays");
+            System.out.println("Type \"back\" to return to the main menu");
             System.out.print(">> ");
             String song = sc.nextLine();
+            if(song.equals("back")) return null; //Null value is returned and read, informing the program to not make any changes and to take a new command
             //Input Validation
             try {
                 lines.add(makeSongFromInput(song));
             }
             catch (IOException e) {
+                //Executes if the format doesn't match the expected format
                 validInput = false;
                 System.out.println("Sorry, it appears you have entered the details in the incorrect format. Please ensure that you have written it as shown in the example format");
             }
             catch (NumberFormatException e) {
+                //Executes if the user doesn't give a valid value for the play count
                 validInput = false;
                 System.out.println("Sorry, it appears you have entered an invalid number for the play count. Please ensure you enter a positive whole number");
             }
@@ -196,8 +210,10 @@ public class Main {
         boolean found = false; //Can you guess what needs to happen for this to become true?
         do { //Loops until valid input
             System.out.println("Enter song name");
+            System.out.println("Type \"back\" to return to the main menu");
             System.out.print(">> ");
             String line = sc.nextLine();
+            if(line.equals("back")) return null; //Null value is returned and read, informing the program to not make any changes and to take a new command
             //Loops through to see if any songs matching the input are stored, then removes it.
             for (Song thisSong : lines) {
                 if (thisSong.getName().equals(line)) {
