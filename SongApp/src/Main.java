@@ -1,17 +1,15 @@
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
 /*Planned Development
-"back" command - allows user to go back to the main interface if they have accidentally given an input and been taken to a secondary interface
-"undo" command - undoes the last change to the file (Do this by storing the last state of the file and passing it to updateFile())
+"undo" command - undoes the last change to the file (Do this by storing the last state of the file and passing it to updateSongFile())
 "history" command - shows the user the last x number of commands executed (Do this by storing a command history file of last x number of commands and updating it after every command)
 If SongList.txt is not found in the project directory, it should display a message to the user to inform them that the file containing their saved songs could not be located and a new blank file has been generated for them
 */
@@ -21,21 +19,26 @@ public class Main {
     //Wanted to avoid using global variables wherever possible but iterating over a local context containing Scanner definition and references leads to issues regarding input reading
     //Global Scanner also prevents the need for repeated declaration and de-allocation
     static Scanner sc = new Scanner(System.in);
+    @SuppressWarnings("ResultOfMethodCallIgnored") //<--Translation for this: "Silence, IDE, trust me"
     public static void main(String[] args) throws IOException {
         //File path and file object instantiation
-        Path path = Paths.get("SongList.txt");
-        File file = new File(path.getFileName().toString());
+        Path songPath = Paths.get("SongList.txt");
+        File songFile = new File(songPath.getFileName().toString());
+
+        Path historyPath = Paths.get("commandHistory.txt");
+        File historyFile = new File(songPath.getFileName().toString());
 
         //Creates a file if it isn't already present
-        //noinspection ResultOfMethodCallIgnored <--Translation for this: "Silence, IDE, trust me"
-        file.createNewFile();
+        songFile.createNewFile();
+        historyFile.createNewFile();
+
 
         //noinspection InfiniteLoopStatement <--The warning was annoying me, so I had to remove it
         while(true) { //I know while(true) is a bit naughty, but it works and doesn't cause any uncontrolled iteration as the loop awaits user input on every iteration
             //Read all lines
-            List<Song> lines = getLines(path);
-
-            takeCommand(lines, path);
+            List<Song> lines = getSongLines(songPath);
+            List<String> historyLines = getHistoryLines(historyPath, historyFile);
+            takeCommand(lines, songPath, historyPath);
         }
 
 
@@ -44,7 +47,7 @@ public class Main {
     /**Takes in the user input and executes the appropriate block of code.
      * If command isn't recognised, it informs the user.
     */
-    public static void takeCommand(List<Song> lines, Path path) {
+    public static void takeCommand(List<Song> lines, Path songPath, Path historyPath) {
         System.out.println("Main Menu");
         System.out.println("Type \"help\" for command list");
         System.out.print(">> "); //Shows the user where to type, aesthetic choice
@@ -87,7 +90,7 @@ public class Main {
                 break;
         }
         //Apply changes to file
-        try {updateFile(lines, path);}
+        try {updateSongFile(lines, songPath);}
         catch(IOException ignored){}
         System.out.println();
     }
@@ -95,7 +98,7 @@ public class Main {
     /**Reads all lines from the file and saves them to a Song list to be returned.
      * If input file is empty, an empty song list is returned.
     */
-    public static List<Song> getLines(Path path) throws IOException {
+    public static List<Song> getSongLines(Path path) throws IOException {
         //Reading all the files lines into a list
         List<String> lines = Files.readAllLines(path, StandardCharsets.UTF_8);
         List<Song> songList = new ArrayList<>();
@@ -103,6 +106,19 @@ public class Main {
             songList.add(makeSongFromInput(line));
         }
         return songList;
+    }
+
+    /***/
+    public static List<String> getHistoryLines(Path historyPath, File historyFile) throws IOException {
+        List<String> lines;
+        try {
+            lines = Files.readAllLines(historyPath, StandardCharsets.UTF_8);
+        }
+        catch(NoSuchFileException e) {
+            historyFile.createNewFile();
+            lines = Files.readAllLines(historyPath, StandardCharsets.UTF_8);
+        }
+        return lines;
     }
 
     /**Prints all the currently stored songs.
@@ -137,7 +153,7 @@ public class Main {
     }
 
     /**Saves lines back to specified file.*/
-    public static void updateFile(List<Song> lines, Path path) throws IOException{
+    public static void updateSongFile(List<Song> lines, Path path) throws IOException {
         //Makes FileWriter object
         FileWriter fw = new FileWriter(path.getFileName().toString());
         //Loops through lines and formats them to be saved to file
@@ -147,6 +163,13 @@ public class Main {
             fw.write(output); //Adds to file
         }
         fw.close();
+    }
+
+    public static void updateHistoryFile(String command, List<String> lines, Path historyPath) throws IOException {
+        //Makes FileWriter object
+        int historyListCutoffLength = 10;
+        FileWriter fw = new FileWriter(historyPath.getFileName().toString());
+
     }
 
     /**Prints all songs over specified play threshold.*/
