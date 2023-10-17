@@ -11,7 +11,6 @@ import java.util.Scanner;
 
 /*Planned Development
 "undo" command - undoes the last change to the file (Do this by storing the last state of the file and passing it to updateSongFile())
-"history" command - shows the user the last x number of commands executed (Do this by storing a command history file of last x number of commands and updating it after every command)
 If SongList.txt is not found in the project directory, it should display a message to the user to inform them that the file containing their saved songs could not be located and a new blank file has been generated for them
 */
 
@@ -20,23 +19,26 @@ public class Main {
     //Wanted to avoid using global variables wherever possible but iterating over a local context containing Scanner definition and references leads to issues regarding input reading
     //Global Scanner also prevents the need for repeated declaration and de-allocation
     static Scanner sc = new Scanner(System.in);
-    @SuppressWarnings("ResultOfMethodCallIgnored") //<--Translation for this: "Silence, IDE, trust me"
     public static void main(String[] args) throws IOException {
         //File path and file object instantiation
+
+        //Stores the songs currently held by the program
         Path songPath = Paths.get("SongList.txt");
         File songFile = new File(songPath.getFileName().toString());
 
+        //Stores the history of the inputted commands
         Path historyPath = Paths.get("commandHistory.txt");
         File historyFile = new File(historyPath.getFileName().toString());
 
         //Creates a file if it isn't already present
-        songFile.createNewFile();
-        historyFile.createNewFile();
+        //If the file isn't already present, the user is notified that a new file has been created
+        if(songFile.createNewFile()) System.out.println("--Notice-- Sorry, we weren't able to locate the song list file on your device. A new, blank file has been created for you");
+        if(historyFile.createNewFile()) System.out.println("--Notice-- Sorry, we weren't able to locate the command history file on your device. A new, blank file has been created for you");
 
 
         //noinspection InfiniteLoopStatement <--The warning was annoying me, so I had to remove it
         while(true) { //I know while(true) is a bit naughty, but it works and doesn't cause any uncontrolled iteration as the loop awaits user input on every iteration
-            //Read all lines
+            //Read all lines from relevant files
             List<Song> lines = getSongLines(songPath);
             List<String> historyLines = Files.readAllLines(historyPath, StandardCharsets.UTF_8);
             takeCommand(lines, songPath, historyPath, historyLines);
@@ -47,6 +49,7 @@ public class Main {
      * If command isn't recognised, it informs the user.
     */
     public static void takeCommand(List<Song> lines, Path songPath, Path historyPath, List<String> historyLines) {
+        //User messages
         System.out.println("Main Menu");
         System.out.println("Type \"help\" for command list");
         System.out.print(">> "); //Shows the user where to type, aesthetic choice
@@ -74,10 +77,12 @@ public class Main {
                 break;
 
             case "history":
-                printHistory(historyLines);
+                //Shows the previously inputted commands
+                printList(historyLines);
                 break;
 
             default:
+                //I decided to break the switch statement into 2 pieces as the cyclomatic complexity scores of the combined switch statements exceed the generally agreed maximum at the method level
                 checkIfFileEditingInput(input, lines, historyLines, historyPath);
                 break;
         }
@@ -87,6 +92,9 @@ public class Main {
         System.out.println();
     }
 
+    /**This method serves as the second half of the switch statement in takeCommand().
+     * Contains the most cyclomatically complex commands (adding and removing songs)
+     */
     public static void checkIfFileEditingInput(String input, List<Song> lines, List<String> historyLines, Path historyPath) {
         switch(input) {
             case "add":
@@ -100,10 +108,11 @@ public class Main {
                 //Removes a specified song from the file
                 List<Song> remTemp = remove(lines, historyLines, historyPath);
                 if(remTemp == null) break; //remove() returns null when user backs out
-                lines = remTemp;
+                lines = remTemp; //Applying changes
                 break;
             
             default:
+            //Executes when user enters a nonexistent command
             System.out.println("Sorry, I didn't recognise that command. Please ensure that everything is spelled as shown in the \"help\" menu");
             break;
         }
@@ -117,6 +126,7 @@ public class Main {
         List<String> lines = Files.readAllLines(path, StandardCharsets.UTF_8);
         List<Song> songList = new ArrayList<>();
         for (String line : lines) {
+            //Formatting file lines into a Song list
             songList.add(makeSongFromInput(line));
         }
         return songList;
@@ -167,21 +177,26 @@ public class Main {
         fw.close();
     }
 
+    /**Adds a command to the command history file
+     * Removes excess commands if the cutoff length has been exceeded
+    */
     public static void updateHistoryFile(String command, List<String> lines, Path historyPath) {
-        int historyListCutoffLength = 10;
+        int historyListCutoffLength = 10; //Used to set how many of the most recent commands are stored at a time
+        
         lines.add(command);
 
         //Loop to remove all commands over the cutoff length length
         while(lines.size() > historyListCutoffLength) lines.remove(0); //The reason of why I use a loop for this instead of a selection is there may be multiple lines too many if the files have been manually edited or if the program gets updated to use a shorter cutoff length
         
+        //FileWriter needs a try or throws statement to be used to attempt file editing
         try (
         //Makes FileWriter object
         FileWriter fw = new FileWriter(historyPath.getFileName().toString())) {
-            
+            //Loops through lines and formats them to be saved to file
             for (int i = 0; i < lines.size(); i++) {
                 String output = lines.get(i);
-                if(i != lines.size() - 1) output += "\n";
-                fw.write(output);
+                if(i != lines.size() - 1) output += "\n"; //Added to ensure the last line doesn't have a return character at the end
+                fw.write(output); //Adding to file
             }
             fw.close();
         }
@@ -190,26 +205,27 @@ public class Main {
 
     /**Prints all songs over specified play threshold.*/
     public static void playsOver(List<Song> lines, List<String> historyLines, Path historyPath) {
-        boolean isntInt;
-        int num;
+        boolean isntInt; //Used for input validation
+        int minimum; //Represents the minimum number of plays a song is required to have to be included in the search result0
         //Loops until valid input
         do{
-            num = 0;
+            minimum = 0;
             isntInt = false; // Used in validation process
+            //User messages
             System.out.println("Please enter your desired minimum play count");
             System.out.println("Type \"back\" to return to the main menu");
             System.out.print(">> ");
             String input = sc.nextLine();
             if(input.equals("back")) return; //This ends the procedure early and returns to the main menu
             //Input validation
-            try {num = Integer.parseInt(input);}
+            try {minimum = Integer.parseInt(input);}
             catch (NumberFormatException e) {
                 isntInt = true;
                 System.out.println("Sorry, it appears you have entered an invalid number. Please ensure you enter a positive whole number");
             }
         } while(isntInt);
-        printSongsOverNum(lines, num);
-        updateHistoryFile("plays_over " + num, historyLines, historyPath);
+        printSongsOverNum(lines, minimum);
+        updateHistoryFile("plays_over " + minimum, historyLines, historyPath);
     }
 
     /**Adds a song with specified details to the file.*/
@@ -222,7 +238,7 @@ public class Main {
             System.out.println("Type \"back\" to return to the main menu");
             System.out.print(">> ");
             song = sc.nextLine();
-            if(song.equals("back")) return null; //Null value is returned and read, informing the program to not make any changes and to take a new command
+            if(song.toLowerCase().equals("back")) return null; //Null value is returned and read, informing the program to not make any changes and to take a new command
             //Input Validation
             try {
                 lines.add(makeSongFromInput(song));
@@ -253,20 +269,16 @@ public class Main {
     public static List<Song> remove(List<Song> lines, List<String> historyLines, Path historyPath) {
         boolean found = false; //Can you guess what needs to happen for this to become true?
         String line;
+        List<Song> temp;
         do { //Loops until valid input
             System.out.println("Enter song name");
             System.out.println("Type \"back\" to return to the main menu");
             System.out.print(">> ");
             line = sc.nextLine();
-            if(line.equals("back")) return null; //Null value is returned and read, informing the program to not make any changes and to take a new command
-            //Loops through to see if any songs matching the input are stored, then removes it.
-            for (Song thisSong : lines) {
-                if (thisSong.getName().equals(line)) {
-                    lines.remove(thisSong);
-                    found = true; //Did you get it? Wow! That's very impressive.
-                    break;
-                }
-            }
+            if(line.toLowerCase().equals("back")) return null; //Null value is returned and read, informing the program to not make any changes and to take a new command
+            
+            temp = removeSong(lines, line);
+            found = (temp != null); //If temp is null, it means that removeSong() was unable to find the desired element and found is set to false
             if (!found) System.out.println("Song not found");
         } while(!found);
         //Applies changes
@@ -275,6 +287,24 @@ public class Main {
         return lines;
     }
     
+    /**Removes a song from the list
+     * Returns null if song not found
+     * Otherwise returns updated list
+     * This block of code was originally contained within remove() but I elected to abstract it into its own method to decrease cyclomatic complexity and remove a "bumpy road" section of my code
+    */
+    public static List<Song> removeSong(List<Song> lines, String line) {
+        //Loops through to see if any songs matching the input are stored, then removes it.
+        for (Song thisSong : lines) {
+            if (thisSong.getName().equals(line)) {
+                //When the song is found, it's then removed and the new list is returned
+                lines.remove(thisSong);
+                return lines;
+            }
+        }
+        //Returns null if element not found
+        return null;
+    }
+
     /**Takes string input, splits it and sets the fields*/
     public static Song makeSongFromInput(String line) throws IOException, NumberFormatException {
         //Split into name, artist and plays
@@ -288,9 +318,12 @@ public class Main {
         //If integer parsing fails, the NumberFormatException is caught in the surrounding context and the user is notified of their severe lapse in judgement
     }
 
-    public static void printHistory(List<String> historyLines) {
-        for (String command : historyLines) {
-            System.out.println(command);
+    /**Prints the contents of a list
+     * Taken into its own method to reduce cyclomatic complexity 
+    */
+    public static void printList(List<String> list) {
+        for (String element : list) {
+            System.out.println(element);
         }
     }
 }
