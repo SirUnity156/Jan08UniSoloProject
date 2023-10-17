@@ -11,7 +11,6 @@ import java.util.Scanner;
 
 /*Planned Development
 "undo" command - undoes the last change to the file (Do this by storing the last state of the file and passing it to updateSongFile())
-If SongList.txt is not found in the project directory, it should display a message to the user to inform them that the file containing their saved songs could not be located and a new blank file has been generated for them
 */
 
 public class Main {
@@ -19,6 +18,8 @@ public class Main {
     //Wanted to avoid using global variables wherever possible but iterating over a local context containing Scanner definition and references leads to issues regarding input reading
     //Global Scanner also prevents the need for repeated declaration and de-allocation
     static Scanner sc = new Scanner(System.in);
+
+    static List<List<Song>> previousStates = new ArrayList<>();
     public static void main(String[] args) throws IOException {
         //File path and file object instantiation
 
@@ -48,7 +49,7 @@ public class Main {
     /**Takes in the user input and executes the appropriate block of code.
      * If command isn't recognised, it informs the user.
     */
-    public static void takeCommand(List<Song> lines, Path songPath, Path historyPath, List<String> historyLines) {
+    public static void takeCommand(List<Song> lines, Path songPath, Path historyPath, List<String> historyLines) throws IOException{
         //User messages
         System.out.println("Main Menu");
         System.out.println("Type \"help\" for command list");
@@ -72,7 +73,7 @@ public class Main {
                 System.out.println("plays_over - This command allows you to narrow down your list of songs to only those that have at least a certain number of plays");
                 System.out.println("add - This command allows you to add new songs into your stored list of songs. After entering this command, you will be asked for the details of the song");
                 System.out.println("remove - This command allows you to remove songs from your stored list of songs. After entering this command, you will be asked for the name of the song");
-                System.out.println("history - This command will show you the last 10 commands that have been entered");
+                System.out.println("history - This command will show you the last 10 commands that have been entered (Oldest to newest)");
                 updateHistoryFile("help", historyLines, historyPath);
                 break;
 
@@ -82,9 +83,9 @@ public class Main {
                 break;
 
             default:
-                //I decided to break the switch statement into 2 pieces as the cyclomatic complexity scores of the combined switch statements exceed the generally agreed maximum at the method level
-                checkIfFileEditingInput(input, lines, historyLines, historyPath);
-                break;
+                //I decided to break the switch statement into 2 pieces as the cyclomatic complexity scores of the combined switch statements exceed the recommended maximum at the method level
+                lines = checkIfFileEditingInput(input, historyLines, historyPath, songPath);
+                break; //Stop the code below this point being called twice as its purpose is fulfilled by code in checkIfFileEditingInput()
         }
         //Apply changes to file
         try {updateSongFile(lines, songPath);}
@@ -95,12 +96,14 @@ public class Main {
     /**This method serves as the second half of the switch statement in takeCommand().
      * Contains the most cyclomatically complex commands (adding and removing songs)
      */
-    public static void checkIfFileEditingInput(String input, List<Song> lines, List<String> historyLines, Path historyPath) {
+    public static List<Song> checkIfFileEditingInput(String input, List<String> historyLines, Path historyPath, Path songPath) throws IOException{
+        List<Song> lines = getSongLines(songPath);
         switch(input) {
             case "add":
                 //Adds a songs with specified details to the file
                 List<Song> addTemp = add(lines, historyLines, historyPath);
                 if(addTemp == null) break; //add() returns null when user backs out
+                updatePreviousStates(songPath, lines); //Saving state prior to change to allow undoing
                 lines = addTemp;
                 break;
 
@@ -108,14 +111,20 @@ public class Main {
                 //Removes a specified song from the file
                 List<Song> remTemp = remove(lines, historyLines, historyPath);
                 if(remTemp == null) break; //remove() returns null when user backs out
+                previousStates.add(lines); //Saving state prior to change to allow undoing
                 lines = remTemp; //Applying changes
                 break;
             
+            case "undo":
+                undo(songPath);
+                break;
+
             default:
             //Executes when user enters a nonexistent command
             System.out.println("Sorry, I didn't recognise that command. Please ensure that everything is spelled as shown in the \"help\" menu");
             break;
         }
+        return lines;
     }
 
     /**Reads all lines from the file and saves them to a Song list to be returned.
@@ -203,6 +212,12 @@ public class Main {
         catch (IOException ignored) {}
     }
 
+    public static void updatePreviousStates(Path songPath, List<Song> lines) throws IOException{
+        int undoMemoryCutoff = 25;
+        previousStates.add(lines);
+        while(previousStates.size() > undoMemoryCutoff) previousStates.remove(0);
+    }
+
     /**Prints all songs over specified play threshold.*/
     public static void playsOver(List<Song> lines, List<String> historyLines, Path historyPath) {
         boolean isntInt; //Used for input validation
@@ -240,9 +255,7 @@ public class Main {
             song = sc.nextLine();
             if(song.toLowerCase().equals("back")) return null; //Null value is returned and read, informing the program to not make any changes and to take a new command
             //Input Validation
-            try {
-                lines.add(makeSongFromInput(song));
-            }
+            try {lines.add(makeSongFromInput(song));}
             catch (IOException e) {
                 //Executes if the format doesn't match the expected format
                 validInput = false;
@@ -258,7 +271,6 @@ public class Main {
         System.out.println("Song added");
 
         updateHistoryFile(song, historyLines, historyPath);
-
         return lines;
     }
 
@@ -325,5 +337,16 @@ public class Main {
         for (String element : list) {
             System.out.println(element);
         }
+    }
+
+    public static void undo(Path songPath) throws IOException{
+        if(previousStates.size() == 0) {
+            System.out.println("Sorry, no changes have been recorded yet in this instance of the application");
+            return;
+        }
+        
+        updateSongFile(previousStates.get(previousStates.size()-1), songPath);
+        previousStates.remove(previousStates.size()-1);
+        System.out.println("Last change has been undone");
     }
 }
