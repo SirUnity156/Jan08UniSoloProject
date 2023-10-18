@@ -10,16 +10,18 @@ import java.util.List;
 import java.util.Scanner;
 
 /*Planned Development
-"undo" command - undoes the last change to the file (Do this by storing the last state of the file and passing it to updateSongFile())
+"update" command - allows the user to update the details of a song currently stored on the database
+"redo" command - reverses the changes made by undo
+- Cut down the number of parameters requested by a method by getting file states within each method rather than passing them in
 */
 
 public class Main {
     //Global Scanner variable
-    //Wanted to avoid using global variables wherever possible but iterating over a local context containing Scanner definition and references leads to issues regarding input reading
-    //Global Scanner also prevents the need for repeated declaration and de-allocation
+    //Wanted to avoid using global variables wherever possible but iterating over a local context containing Scanner definition and references leads to issues regarding the input reading
+    //Global Scanner also prevents the need for repeated declaration and de-allocation or passing into numerous local contexts
     static Scanner sc = new Scanner(System.in);
 
-    static List<List<Song>> previousStates = new ArrayList<>();
+    static List<List<Song>> previousStates = new ArrayList<>(0);
     public static void main(String[] args) throws IOException {
         //File path and file object instantiation
 
@@ -36,7 +38,6 @@ public class Main {
         if(songFile.createNewFile()) System.out.println("--Notice-- Sorry, we weren't able to locate the song list file on your device. A new, blank file has been created for you");
         if(historyFile.createNewFile()) System.out.println("--Notice-- Sorry, we weren't able to locate the command history file on your device. A new, blank file has been created for you");
 
-
         //noinspection InfiniteLoopStatement <--The warning was annoying me, so I had to remove it
         while(true) { //I know while(true) is a bit naughty, but it works and doesn't cause any uncontrolled iteration as the loop awaits user input on every iteration
             //Read all lines from relevant files
@@ -51,6 +52,7 @@ public class Main {
     */
     public static void takeCommand(List<Song> lines, Path songPath, Path historyPath, List<String> historyLines) throws IOException{
         //User messages
+        System.out.println();
         System.out.println("Main Menu");
         System.out.println("Type \"help\" for command list");
         System.out.print(">> "); //Shows the user where to type, aesthetic choice
@@ -84,13 +86,15 @@ public class Main {
 
             default:
                 //I decided to break the switch statement into 2 pieces as the cyclomatic complexity scores of the combined switch statements exceed the recommended maximum at the method level
-                lines = checkIfFileEditingInput(input, historyLines, historyPath, songPath);
-                break; //Stop the code below this point being called twice as its purpose is fulfilled by code in checkIfFileEditingInput()
+                List<Song> stateTemp = lines; //Stores the state before the file change
+                int previousStatesPriorSize = previousStates.size(); //Used to determine if undo() has happened
+                lines = checkIfFileEditingInput(input, historyLines, historyPath, songPath); //Update values
+                if(stateTemp != lines && previousStatesPriorSize <= previousStates.size()) updatePreviousStates(stateTemp); //First condition: (If a change has occurred, add the old state to the previous state list). Second condition: (Only execute if undo() hasn't happened)
+                break;
         }
         //Apply changes to file
         try {updateSongFile(lines, songPath);}
-        catch(IOException ignored){}
-        System.out.println();
+        catch(IOException e){System.out.println(e.getMessage());}
     }
 
     /**This method serves as the second half of the switch statement in takeCommand().
@@ -103,20 +107,20 @@ public class Main {
                 //Adds a songs with specified details to the file
                 List<Song> addTemp = add(lines, historyLines, historyPath);
                 if(addTemp == null) break; //add() returns null when user backs out
-                updatePreviousStates(songPath, lines); //Saving state prior to change to allow undoing
-                lines = addTemp;
+                lines = addTemp; //Applying changes
                 break;
 
             case "remove":
                 //Removes a specified song from the file
                 List<Song> remTemp = remove(lines, historyLines, historyPath);
                 if(remTemp == null) break; //remove() returns null when user backs out
-                previousStates.add(lines); //Saving state prior to change to allow undoing
                 lines = remTemp; //Applying changes
                 break;
-            
+
             case "undo":
-                undo(songPath);
+                List<Song> tempUndo = undo(songPath); //Temporarily stores the result of undo()
+                if(tempUndo == null) break; //undo() returns null if there have been no previous changes
+                lines = tempUndo;//Applying changes
                 break;
 
             default:
@@ -209,13 +213,14 @@ public class Main {
             }
             fw.close();
         }
-        catch (IOException ignored) {}
+        catch(IOException e){System.out.println(e.getMessage());}
     }
 
-    public static void updatePreviousStates(Path songPath, List<Song> lines) throws IOException{
-        int undoMemoryCutoff = 25;
+    /**Adds a new state to the previous state list and shortens it if the list is too long*/
+    public static void updatePreviousStates(List<Song> lines) {
+        int undoMemoryCutoff = 25; //Used to add a maximum number of possible state storing to prevent unnecessary memory usage
         previousStates.add(lines);
-        while(previousStates.size() > undoMemoryCutoff) previousStates.remove(0);
+        while(previousStates.size() > undoMemoryCutoff) previousStates.remove(0); //Loops to remove oldest states if too many states are stored
     }
 
     /**Prints all songs over specified play threshold.*/
@@ -270,7 +275,7 @@ public class Main {
         //Applies changes
         System.out.println("Song added");
 
-        updateHistoryFile(song, historyLines, historyPath);
+        updateHistoryFile("add " + song, historyLines, historyPath);
         return lines;
     }
 
@@ -295,7 +300,7 @@ public class Main {
         } while(!found);
         //Applies changes
         System.out.println("Song removed");
-        updateHistoryFile(line, historyLines, historyPath);
+        updateHistoryFile("remove " + line, historyLines, historyPath);
         return lines;
     }
     
@@ -331,7 +336,7 @@ public class Main {
     }
 
     /**Prints the contents of a list
-     * Taken into its own method to reduce cyclomatic complexity 
+     * Taken into its own method to reduce cyclomatic complexity
     */
     public static void printList(List<String> list) {
         for (String element : list) {
@@ -339,14 +344,14 @@ public class Main {
         }
     }
 
-    public static void undo(Path songPath) throws IOException{
+    /**Undoes the most recent change to the song list */
+    public static List<Song> undo(Path songPath) {
         if(previousStates.size() == 0) {
             System.out.println("Sorry, no changes have been recorded yet in this instance of the application");
-            return;
+            return null;
         }
-        
-        updateSongFile(previousStates.get(previousStates.size()-1), songPath);
-        previousStates.remove(previousStates.size()-1);
-        System.out.println("Last change has been undone");
+        List<Song> temp = previousStates.get(previousStates.size()-1); //Used to store desired file contents state
+        previousStates.remove(previousStates.size()-1); //Removes the state that was just undone (might reverse this in future to allow for redo feature)
+        return temp;
     }
 }
