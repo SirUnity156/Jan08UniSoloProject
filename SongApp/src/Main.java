@@ -11,8 +11,9 @@ import java.util.Scanner;
 
 /*Planned Development
 "update" command - allows the user to update the details of a song currently stored on the database
-"redo" command - reverses the changes made by undo
+"redo" command - reverses the changes made by undo (do this by changing how undo() works such that undone states are not deleted and the current position on the state timeline should be stored in the file
 - Cut down the number of parameters requested by a method by getting file states within each method rather than passing them in
+"Exit" command - allows the user to exit the application without having to close it manually
 */
 
 public class Main {
@@ -21,6 +22,9 @@ public class Main {
     //Global Scanner also prevents the need for repeated declaration and de-allocation or passing into numerous local contexts
     static Scanner sc = new Scanner(System.in);
 
+    //Global variable to store the previous states of the list for every time a change occurs
+    //I have elected to store the previous states internally within the program rather than in an external file so that all data of previous states are lost. This prevents users from being able to undo changes made in previous instances of the program, thereby eliminating a source of user confusion/privacy breach
+    //Once again, as with global Scanner, the purpose of this variable being global is to reduce the quantity of arguments required to be passed into the local contexts
     static List<List<Song>> previousStates = new ArrayList<>(0);
     public static void main(String[] args) throws IOException {
         //File path and file object instantiation
@@ -218,7 +222,7 @@ public class Main {
 
     /**Adds a new state to the previous state list and shortens it if the list is too long*/
     public static void updatePreviousStates(List<Song> lines) {
-        int undoMemoryCutoff = 25; //Used to add a maximum number of possible state storing to prevent unnecessary memory usage
+        int undoMemoryCutoff = 10; //Used to add a maximum number of possible state storing to prevent unnecessary memory usage
         previousStates.add(lines);
         while(previousStates.size() > undoMemoryCutoff) previousStates.remove(0); //Loops to remove oldest states if too many states are stored
     }
@@ -346,9 +350,9 @@ public class Main {
 
     /**Undoes the most recent change to the song list */
     public static List<Song> undo(Path songPath) {
-        if(previousStates.size() == 0) {
+        if(previousStates.size() == 0) { //Detects if there are no stored changes
             System.out.println("Sorry, no changes have been recorded yet in this instance of the application");
-            return null;
+            return null; //null return data is picked up after function call and interpreted accordingly
         }
         List<Song> temp = previousStates.get(previousStates.size()-1); //Used to store desired file contents state
         previousStates.remove(previousStates.size()-1); //Removes the state that was just undone (might reverse this in future to allow for redo feature)
