@@ -13,7 +13,7 @@ import java.util.Scanner;
 "update" command - allows the user to update the details of a song currently stored on the database
 "redo" command - reverses the changes made by undo (do this by changing how undo() works such that undone states are not deleted and the current position on the state timeline should be stored in the file
 - Cut down the number of parameters requested by a method by getting file states within each method rather than passing them in
-"Exit" command - allows the user to exit the application without having to close it manually
+- Reduce cyclomatic complexity in getCommand
 */
 
 public class Main {
@@ -73,23 +73,9 @@ public class Main {
                 playsOver(lines, historyLines, historyPath);
                 break;
 
-            case "help":
-                //Describes features to user
-                System.out.println("all_songs - This command will show you all the songs you have currently stored");
-                System.out.println("plays_over - This command allows you to narrow down your list of songs to only those that have at least a certain number of plays");
-                System.out.println("add - This command allows you to add new songs into your stored list of songs. After entering this command, you will be asked for the details of the song");
-                System.out.println("remove - This command allows you to remove songs from your stored list of songs. After entering this command, you will be asked for the name of the song");
-                System.out.println("history - This command will show you the last 10 commands that have been entered (Oldest to newest)");
-                updateHistoryFile("help", historyLines, historyPath);
-                break;
-
-            case "history":
-                //Shows the previously inputted commands
-                printList(historyLines);
-                break;
-
+                
             default:
-                //I decided to break the switch statement into 2 pieces as the cyclomatic complexity scores of the combined switch statements exceed the recommended maximum at the method level
+                //I decided to break the switch statement into 3 pieces as the cyclomatic complexity scores of the combined switch statements exceed the recommended maximum at the method level
                 List<Song> stateTemp = lines; //Stores the state before the file change
                 int previousStatesPriorSize = previousStates.size(); //Used to determine if undo() has happened
                 lines = checkIfFileEditingInput(input, historyLines, historyPath, songPath); //Update values
@@ -101,11 +87,11 @@ public class Main {
         catch(IOException e){System.out.println(e.getMessage());}
     }
 
-    /**This method serves as the second half of the switch statement in takeCommand().
+    /**This method serves as the second part of the switch statement in takeCommand().
      * Contains the most cyclomatically complex commands (adding and removing songs)
      */
     public static List<Song> checkIfFileEditingInput(String input, List<String> historyLines, Path historyPath, Path songPath) throws IOException{
-        List<Song> lines = getSongLines(songPath);
+        List<Song> lines = getSongLines(songPath); //I chose to get file contents from inside the method rather than passing the file state in because this method already has too many arguments
         switch(input) {
             case "add":
                 //Adds a songs with specified details to the file
@@ -128,11 +114,41 @@ public class Main {
                 break;
 
             default:
-            //Executes when user enters a nonexistent command
-            System.out.println("Sorry, I didn't recognise that command. Please ensure that everything is spelled as shown in the \"help\" menu");
-            break;
+                checkIfMiscInput(input, historyLines, historyPath);
+                break;
         }
         return lines;
+    }
+    
+    /**This method serves as the third part of the switch statement in getCommand
+     * Contains miscellaneous features that do not edit files
+     */
+    public static void checkIfMiscInput(String input, List<String> historyLines, Path historyPath) {
+        switch(input) {
+            case "help":
+                //Describes features to user
+                System.out.println("all_songs - This command will show you all the songs you have currently stored");
+                System.out.println("plays_over - This command allows you to narrow down your list of songs to only those that have at least a certain number of plays");
+                System.out.println("add - This command allows you to add new songs into your stored list of songs. After entering this command, you will be asked for the details of the song");
+                System.out.println("remove - This command allows you to remove songs from your stored list of songs. After entering this command, you will be asked for the name of the song");
+                System.out.println("history - This command will show you the last 10 commands that have been entered (Oldest to newest)");
+                updateHistoryFile("help", historyLines, historyPath);
+                break;
+
+            case "history":
+                //Shows the previously inputted commands
+                printList(historyLines);
+                break;
+
+            case "exit":
+                //Closes the application with normal exit status
+                System.exit(0);
+
+            default:
+                //Executes when user enters a nonexistent command
+                System.out.println("Sorry, I didn't recognise that command. Please ensure that everything is spelled as shown in the \"help\" menu");
+                break;
+        }
     }
 
     /**Reads all lines from the file and saves them to a Song list to be returned.
