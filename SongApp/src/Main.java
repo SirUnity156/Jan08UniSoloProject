@@ -13,7 +13,6 @@ import java.util.Scanner;
 "update" command - allows the user to update the details of a song currently stored on the database
 "redo" command - reverses the changes made by undo (do this by changing how undo() works such that undone states are not deleted and the current position on the state timeline should be stored in the file
 - Cut down the number of parameters requested by a method by getting file states within each method rather than passing them in
-- Reduce cyclomatic complexity in getCommand
 */
 
 public class Main {
@@ -51,10 +50,10 @@ public class Main {
         }
     }
 
-    /**Takes in the user input and executes the appropriate block of code.
+    /**Takes in the user input and consults a CommandHandler object to execute the appropriate block of code.
      * If command isn't recognised, it informs the user.
     */
-    public static void takeCommand(List<Song> lines, Path songPath, Path historyPath, List<String> historyLines) throws IOException{
+    public static void takeCommand(List<Song> lines, Path songPath, Path historyPath, List<String> historyLines) throws IOException {
         //User messages
         System.out.println();
         System.out.println("Main Menu");
@@ -62,93 +61,34 @@ public class Main {
         System.out.print(">> "); //Shows the user where to type, aesthetic choice
         String input = sc.nextLine().toLowerCase();
 
-        switch (input) { //Takes input and selects appropriate execution block
-            case "all_songs":
-                //Prints all the currently stored songs
-                printSongs(lines, historyLines, historyPath);
-                break;
+        //Saves the state of the file before the command is executed
+        int tempPrevStateLen = previousStates.size();
+        List<Song> prevState = listAssignWithoutReference(lines);
 
-            case "plays_over":
-                //Prints all songs over specified play threshold
-                playsOver(lines, historyLines, historyPath);
-                break;
+        //CommandHandler object taking input and directing directing the call to the right method and returning the state of the song list after command execution
+        List<Song> newLines = (new CommandHandler(lines, historyPath, historyLines).handleCommand(input));
 
-                
-            default:
-                //I decided to break the switch statement into 3 pieces as the cyclomatic complexity scores of the combined switch statements exceed the recommended maximum at the method level
-                List<Song> stateTemp = lines; //Stores the state before the file change
-                int previousStatesPriorSize = previousStates.size(); //Used to determine if undo() has happened
-                lines = checkIfFileEditingInput(input, historyLines, historyPath, songPath); //Update values
-                if(stateTemp != lines && previousStatesPriorSize <= previousStates.size()) updatePreviousStates(stateTemp); //First condition: (If a change has occurred, add the old state to the previous state list). Second condition: (Only execute if undo() hasn't happened)
-                break;
-        }
+        if(newLines == null) return; //A return value of null means that no changes have been made and the file does not need to be updated
+        if(previousStates.size() == tempPrevStateLen && newLines != prevState) updatePreviousStates(prevState);
+        
         //Apply changes to file
-        try {updateSongFile(lines, songPath);}
-        catch(IOException e){System.out.println(e.getMessage());}
+        updateSongFile(newLines, songPath);
     }
 
-    /**This method serves as the second part of the switch statement in takeCommand().
-     * Contains the most cyclomatically complex commands (adding and removing songs)
-     */
-    public static List<Song> checkIfFileEditingInput(String input, List<String> historyLines, Path historyPath, Path songPath) throws IOException{
-        List<Song> lines = getSongLines(songPath); //I chose to get file contents from inside the method rather than passing the file state in because this method already has too many arguments
-        switch(input) {
-            case "add":
-                //Adds a songs with specified details to the file
-                List<Song> addTemp = add(lines, historyLines, historyPath);
-                if(addTemp == null) break; //add() returns null when user backs out
-                lines = addTemp; //Applying changes
-                break;
-
-            case "remove":
-                //Removes a specified song from the file
-                List<Song> remTemp = remove(lines, historyLines, historyPath);
-                if(remTemp == null) break; //remove() returns null when user backs out
-                lines = remTemp; //Applying changes
-                break;
-
-            case "undo":
-                List<Song> tempUndo = undo(songPath); //Temporarily stores the result of undo()
-                if(tempUndo == null) break; //undo() returns null if there have been no previous changes
-                lines = tempUndo;//Applying changes
-                break;
-
-            default:
-                checkIfMiscInput(input, historyLines, historyPath);
-                break;
-        }
-        return lines;
+    /**Shows and describes all accepted commands to the user */
+    public static void help(List<String> historyLines, Path historyPath) {
+        System.out.println("all_songs - This command will show you all the songs you have currently stored");
+        System.out.println("plays_over - This command allows you to narrow down your list of songs to only those that have at least a certain number of plays");
+        System.out.println("add - This command allows you to add new songs into your stored list of songs. After entering this command, you will be asked for the details of the song");
+        System.out.println("remove - This command allows you to remove songs from your stored list of songs. After entering this command, you will be asked for the name of the song");
+        System.out.println("history - This command will show you the last 10 commands that have been entered (Oldest to newest)");
+        System.out.println("undo - This command will allow you to undo changes you have made to the song file, please not that you cannot undo changes from previous instances of the application");
+        updateHistoryFile("help", historyLines, historyPath);
     }
-    
-    /**This method serves as the third part of the switch statement in getCommand
-     * Contains miscellaneous features that do not edit files
-     */
-    public static void checkIfMiscInput(String input, List<String> historyLines, Path historyPath) {
-        switch(input) {
-            case "help":
-                //Describes features to user
-                System.out.println("all_songs - This command will show you all the songs you have currently stored");
-                System.out.println("plays_over - This command allows you to narrow down your list of songs to only those that have at least a certain number of plays");
-                System.out.println("add - This command allows you to add new songs into your stored list of songs. After entering this command, you will be asked for the details of the song");
-                System.out.println("remove - This command allows you to remove songs from your stored list of songs. After entering this command, you will be asked for the name of the song");
-                System.out.println("history - This command will show you the last 10 commands that have been entered (Oldest to newest)");
-                updateHistoryFile("help", historyLines, historyPath);
-                break;
 
-            case "history":
-                //Shows the previously inputted commands
-                printList(historyLines);
-                break;
-
-            case "exit":
-                //Closes the application with normal exit status
-                System.exit(0);
-
-            default:
-                //Executes when user enters a nonexistent command
-                System.out.println("Sorry, I didn't recognise that command. Please ensure that everything is spelled as shown in the \"help\" menu");
-                break;
-        }
+    /**Executes if the user enters an unrecognised command */
+    public static void unrecognisedCommand() {
+        System.out.println("Sorry, I didn't recognise that command. Please ensure that everything is spelled as shown in the \"help\" menu");
     }
 
     /**Reads all lines from the file and saves them to a Song list to be returned.
@@ -218,7 +158,7 @@ public class Main {
         
         lines.add(command);
 
-        //Loop to remove all commands over the cutoff length length
+        //Loop to remove all commands over the cutoff  length
         while(lines.size() > historyListCutoffLength) lines.remove(0); //The reason of why I use a loop for this instead of a selection is there may be multiple lines too many if the files have been manually edited or if the program gets updated to use a shorter cutoff length
         
         //FileWriter needs a try or throws statement to be used to attempt file editing
@@ -231,7 +171,6 @@ public class Main {
                 if(i != lines.size() - 1) output += "\n"; //Added to ensure the last line doesn't have a return character at the end
                 fw.write(output); //Adding to file
             }
-            fw.close();
         }
         catch(IOException e){System.out.println(e.getMessage());}
     }
@@ -240,7 +179,7 @@ public class Main {
     public static void updatePreviousStates(List<Song> lines) {
         int undoMemoryCutoff = 10; //Used to add a maximum number of possible state storing to prevent unnecessary memory usage
         previousStates.add(lines);
-        while(previousStates.size() > undoMemoryCutoff) previousStates.remove(0); //Loops to remove oldest states if too many states are stored
+        while(previousStates.size() > undoMemoryCutoff) previousStates.remove(0); //Loops to remove the oldest states if too many states are stored
     }
 
     /**Prints all songs over specified play threshold.*/
@@ -278,7 +217,7 @@ public class Main {
             System.out.println("Type \"back\" to return to the main menu");
             System.out.print(">> ");
             song = sc.nextLine();
-            if(song.toLowerCase().equals("back")) return null; //Null value is returned and read, informing the program to not make any changes and to take a new command
+            if(song.equalsIgnoreCase("back")) return null; //Null value is returned and read, informing the program to not make any changes and to take a new command
             //Input Validation
             try {lines.add(makeSongFromInput(song));}
             catch (IOException e) {
@@ -304,7 +243,7 @@ public class Main {
      * If specified song isn't found, it loops and re-prompts the user.
     */
     public static List<Song> remove(List<Song> lines, List<String> historyLines, Path historyPath) {
-        boolean found = false; //Can you guess what needs to happen for this to become true?
+        boolean found; //Can you guess what needs to happen for this to become true?
         String line;
         List<Song> temp;
         do { //Loops until valid input
@@ -312,7 +251,7 @@ public class Main {
             System.out.println("Type \"back\" to return to the main menu");
             System.out.print(">> ");
             line = sc.nextLine();
-            if(line.toLowerCase().equals("back")) return null; //Null value is returned and read, informing the program to not make any changes and to take a new command
+            if(line.equalsIgnoreCase("back")) return null; //Null value is returned and read, informing the program to not make any changes and to take a new command
             
             temp = removeSong(lines, line);
             found = (temp != null); //If temp is null, it means that removeSong() was unable to find the desired element and found is set to false
@@ -365,13 +304,27 @@ public class Main {
     }
 
     /**Undoes the most recent change to the song list */
-    public static List<Song> undo(Path songPath) {
-        if(previousStates.size() == 0) { //Detects if there are no stored changes
+    public static List<Song> undo(List<String> historyLines, Path historyPath) {
+        if(previousStates.isEmpty()) { //Detects if there are no stored changes
             System.out.println("Sorry, no changes have been recorded yet in this instance of the application");
             return null; //null return data is picked up after function call and interpreted accordingly
         }
         List<Song> temp = previousStates.get(previousStates.size()-1); //Used to store desired file contents state
         previousStates.remove(previousStates.size()-1); //Removes the state that was just undone (might reverse this in future to allow for redo feature)
+        updateHistoryFile("undo", historyLines, historyPath);
         return temp;
+    }
+
+    /**Used to copy values from one list to another.
+     * The reason that I don't just write newList = oldList is because that operation doesn't copy the values across to the new list object.
+     * Instead, it sends the original object reference and any changes to the new list will also occur to the old list
+     * This caused me significant mental anguish before I figured it out
+     */
+    public static <T> List<T> listAssignWithoutReference(List<T> toBeAssigned) {
+        List<T> newList = new ArrayList<>(0);
+        for (int i = 0; i < toBeAssigned.size(); i++) {
+            newList.add(toBeAssigned.get(i));
+        }
+        return newList;
     }
 }
