@@ -13,7 +13,6 @@ import java.util.Scanner;
 "update" command - allows the user to update the details of a song currently stored on the database
 "redo" command - reverses the changes made by undo (do this by changing how undo() works such that undone states are not deleted and the current position on the state timeline should be stored in the file
 - Cut down the number of parameters requested by a method by getting file states within each method rather than passing them in
-- Reduce cyclomatic complexity in getCommand
 */
 
 public class Main {
@@ -51,34 +50,43 @@ public class Main {
         }
     }
 
-    /**Takes in the user input and executes the appropriate block of code.
+    /**Takes in the user input and consults a CommandHandler object to execute the appropriate block of code.
      * If command isn't recognised, it informs the user.
     */
-    public static void takeCommand(List<Song> lines, Path songPath, Path historyPath, List<String> historyLines) {
+    public static void takeCommand(List<Song> lines, Path songPath, Path historyPath, List<String> historyLines) throws IOException {
         //User messages
         System.out.println();
         System.out.println("Main Menu");
         System.out.println("Type \"help\" for command list");
         System.out.print(">> "); //Shows the user where to type, aesthetic choice
         String input = sc.nextLine().toLowerCase();
-        List<Song> newLines = (new SongCommandHandler(lines, songPath, historyPath, historyLines).handleCommand(input));
 
-        if(newLines == null) {System.out.println("hi"); return;}
-        updatePreviousStates(lines);
+        //Saves the state of the file before the command is executed
+        int tempPrevStateLen = previousStates.size();
+        List<Song> prevState = listAssignWithoutReference(lines);
+
+        //CommandHandler object taking input and directing directing the call to the right method and returning the state of the song list after command execution
+        List<Song> newLines = (new CommandHandler(lines, historyPath, historyLines).handleCommand(input));
+
+        if(newLines == null) return; //A return value of null means that no changes have been made and the file does not need to be updated
+        if(previousStates.size() == tempPrevStateLen && newLines != prevState) updatePreviousStates(prevState);
+        
         //Apply changes to file
-        try {updateSongFile(newLines, songPath);}
-        catch(IOException e){System.out.println(e.getMessage());}
+        updateSongFile(newLines, songPath);
     }
 
+    /**Shows and describes all accepted commands to the user */
     public static void help(List<String> historyLines, Path historyPath) {
         System.out.println("all_songs - This command will show you all the songs you have currently stored");
         System.out.println("plays_over - This command allows you to narrow down your list of songs to only those that have at least a certain number of plays");
         System.out.println("add - This command allows you to add new songs into your stored list of songs. After entering this command, you will be asked for the details of the song");
         System.out.println("remove - This command allows you to remove songs from your stored list of songs. After entering this command, you will be asked for the name of the song");
         System.out.println("history - This command will show you the last 10 commands that have been entered (Oldest to newest)");
+        System.out.println("undo - This command will allow you to undo changes you have made to the song file, please not that you cannot undo changes from previous instances of the application");
         updateHistoryFile("help", historyLines, historyPath);
     }
 
+    /**Executes if the user enters an unrecognised command */
     public static void unrecognisedCommand() {
         System.out.println("Sorry, I didn't recognise that command. Please ensure that everything is spelled as shown in the \"help\" menu");
     }
@@ -296,13 +304,27 @@ public class Main {
     }
 
     /**Undoes the most recent change to the song list */
-    public static List<Song> undo() {
+    public static List<Song> undo(List<String> historyLines, Path historyPath) {
         if(previousStates.isEmpty()) { //Detects if there are no stored changes
             System.out.println("Sorry, no changes have been recorded yet in this instance of the application");
             return null; //null return data is picked up after function call and interpreted accordingly
         }
         List<Song> temp = previousStates.get(previousStates.size()-1); //Used to store desired file contents state
         previousStates.remove(previousStates.size()-1); //Removes the state that was just undone (might reverse this in future to allow for redo feature)
+        updateHistoryFile("undo", historyLines, historyPath);
         return temp;
+    }
+
+    /**Used to copy values from one list to another.
+     * The reason that I don't just write newList = oldList is because that operation doesn't copy the values across to the new list object.
+     * Instead, it sends the original object reference and any changes to the new list will also occur to the old list
+     * This caused me significant mental anguish before I figured it out
+     */
+    public static <T> List<T> listAssignWithoutReference(List<T> toBeAssigned) {
+        List<T> newList = new ArrayList<>(0);
+        for (int i = 0; i < toBeAssigned.size(); i++) {
+            newList.add(toBeAssigned.get(i));
+        }
+        return newList;
     }
 }
