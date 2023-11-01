@@ -10,9 +10,10 @@ import java.util.List;
 import java.util.Scanner;
 
 /*Planned Development
-"update" command - allows the user to update the details of a song currently stored on the database
-"redo" command - reverses the changes made by undo (do this by changing how undo() works such that undone states are not deleted and the current position on the state timeline should be stored in the file
+- "redo" command - reverses the changes made by undo (do this by changing how undo() works such that undone states are not deleted and the current position on the state timeline should be stored in the file
 - Cut down the number of parameters requested by a method by getting file states within each method rather than passing them in
+- Reduce cyclomatic complexity and remove bumpy road in update
+- "Debug" dev command showing all previous takeCommand completion number
 */
 
 public class Main {
@@ -26,6 +27,14 @@ public class Main {
     //Once again, as with global Scanner, the purpose of this variable being global is to reduce the quantity of arguments required to be passed into the local contexts
     static List<List<Song>> previousStates = new ArrayList<>(0);
     public static void main(String[] args) throws IOException {
+        //Shutdown hook to display a message when the program closes for any reason.
+        //This means that users will be able to see a message whether they use the exit command or just close the terminal/JVM itself.
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            public void run() {
+                System.out.println("Shutting down..."); // Code to run on exit
+            }
+        });
+
         //File path and file object instantiation
 
         //Stores the songs currently held by the program
@@ -41,19 +50,28 @@ public class Main {
         if(songFile.createNewFile()) System.out.println("--Notice-- Sorry, we weren't able to locate the song list file on your device. A new, blank file has been created for you");
         if(historyFile.createNewFile()) System.out.println("--Notice-- Sorry, we weren't able to locate the command history file on your device. A new, blank file has been created for you");
 
-        //noinspection InfiniteLoopStatement <--The warning was annoying me, so I had to remove it
-        while(true) { //I know while(true) is a bit naughty, but it works and doesn't cause any uncontrolled iteration as the loop awaits user input on every iteration
+        //This will be used in the debug log to track types of command completions happening in the code (exits, no file change, file change etc) for aid in development and debugging
+        int completionCode = -1; //Initialised to -1 as not to conflict with the genuine completion codes (which are all 0 or greater)
+        while(completionCode != 0) { //Loops until the completion code is 0 (resulting from user exit)
             //Read all lines from relevant files
             List<Song> lines = getSongLines(songPath);
             List<String> historyLines = Files.readAllLines(historyPath, StandardCharsets.UTF_8);
-            takeCommand(lines, songPath, historyPath, historyLines);
+
+            //Saves completion code for debug log
+            /*
+             * 0 - exit
+             * 1 - completed with no file change
+             * 2 - completed with file change
+             */
+            completionCode = takeCommand(lines, songPath, historyPath, historyLines);
         }
     }
 
     /**Takes in the user input and consults a CommandHandler object to execute the appropriate block of code.
      * If command isn't recognised, it informs the user.
+     * Integer return value represents the completion code
     */
-    public static void takeCommand(List<Song> lines, Path songPath, Path historyPath, List<String> historyLines) throws IOException {
+    public static int takeCommand(List<Song> lines, Path songPath, Path historyPath, List<String> historyLines) throws IOException {
         //User messages
         System.out.println();
         System.out.println("Main Menu");
@@ -66,13 +84,71 @@ public class Main {
         List<Song> prevState = listAssignWithoutReference(lines);
 
         //CommandHandler object taking input and directing directing the call to the right method and returning the state of the song list after command execution
-        List<Song> newLines = (new CommandHandler(lines, historyPath, historyLines).handleCommand(input));
+        List<Song> newLines = (new CommandHandler(lines, historyPath, historyLines, songPath).handleCommand(input));
 
-        if(newLines == null) return; //A return value of null means that no changes have been made and the file does not need to be updated
+        if(newLines == null) return 1; //A return value of null means that no changes have been made and the file does not need to be updated
+        if(newLines.size() == 1 && newLines.get(0).getPlays() == -1) return 0; //User has entered the exit command and the command will close
+        
+        //Update previous states if a change has happened
         if(previousStates.size() == tempPrevStateLen && newLines != prevState) updatePreviousStates(prevState);
         
         //Apply changes to file
         updateSongFile(newLines, songPath);
+        return 2; //Completed with file update
+    }
+
+    /**Allows user to update details of songs that are already stored
+     * Asks for song's current name and will loop until valid input or user backing out
+     * Then asks for new details, loop until valid input or user backing out
+     * Applies and returns values
+    */
+    public static List<Song> update(Path path) throws IOException{
+        //Reading lines from the file
+        List<Song> lines = getSongLines(path);
+        
+        boolean found = false;
+        String line;
+        int index = 0;
+        do { //Loops until valid input
+            System.out.println("Enter the current name of the song that you wish to update");
+            System.out.println("Type \"back\" to return to the main menu");
+            System.out.print(">> ");
+            line = sc.nextLine();
+            if(line.equalsIgnoreCase("back")) return null; //Null value is returned and read, informing the program to not make any changes and to take a new command
+            for (int i = 0; i < lines.size(); i++) {
+                if(lines.get(i).getName() == line);
+                found = true;
+                index = i;
+            }
+            if (!found) System.out.println("Song not found");
+        } while(!found);
+        System.out.println("Song found!");
+        boolean validInput; //For validation
+        String song;
+        Song songSong = new Song("", "", 0);
+        do { //Loops until valid input
+            validInput = true;
+            System.out.println("Enter the new details for the song in following format: name, artist, plays");
+            System.out.println("Type \"back\" to return to the main menu");
+            System.out.print(">> ");
+            song = sc.nextLine();
+            if(song.equalsIgnoreCase("back")) return null; //Null value is returned and read, informing the program to not make any changes and to take a new command
+            //Input Validation
+            try {songSong = makeSongFromInput(song);}
+            catch (IOException e) {
+                //Executes if the format doesn't match the expected format
+                validInput = false;
+                System.out.println("Sorry, it appears you have entered the details in the incorrect format. Please ensure that you have written it as shown in the example format");
+            }
+            catch (NumberFormatException e) {
+                //Executes if the user doesn't give a valid value for the play count
+                validInput = false;
+                System.out.println("Sorry, it appears you have entered an invalid number for the play count. Please ensure you enter a positive whole number");
+            }
+        } while(!validInput);
+        //Applying and returning values
+        lines.set(index, songSong);
+        return lines;
     }
 
     /**Shows and describes all accepted commands to the user */
@@ -83,6 +159,7 @@ public class Main {
         System.out.println("remove - This command allows you to remove songs from your stored list of songs. After entering this command, you will be asked for the name of the song");
         System.out.println("history - This command will show you the last 10 commands that have been entered (Oldest to newest)");
         System.out.println("undo - This command will allow you to undo changes you have made to the song file, please not that you cannot undo changes from previous instances of the application");
+        System.out.println("update - This command will allow you to update the details of songs already stored in the application");
         updateHistoryFile("help", historyLines, historyPath);
     }
 
@@ -143,9 +220,9 @@ public class Main {
         FileWriter fw = new FileWriter(path.getFileName().toString());
         //Loops through lines and formats them to be saved to file
         for(int i = 0; i < lines.size(); i++) {
-            String output = lines.get(i).getName() + ", " + lines.get(i).getArtist() + ", " + lines.get(i).getPlays();
-            if(i != lines.size()-1) output += "\n"; //Added to ensure the last line doesn't have a return character at the end
-            fw.write(output); //Adds to file
+            StringBuilder sBuilder = new StringBuilder(lines.get(i).getName() + ", " + lines.get(i).getArtist() + ", " + lines.get(i).getPlays());
+            if(i != lines.size()-1) sBuilder.append("\n"); //Added to ensure the last line doesn't have a return character at the end
+            fw.write(sBuilder.toString()); //Adds to file
         }
         fw.close();
     }
@@ -167,9 +244,9 @@ public class Main {
         FileWriter fw = new FileWriter(historyPath.getFileName().toString())) {
             //Loops through lines and formats them to be saved to file
             for (int i = 0; i < lines.size(); i++) {
-                String output = lines.get(i);
-                if(i != lines.size() - 1) output += "\n"; //Added to ensure the last line doesn't have a return character at the end
-                fw.write(output); //Adding to file
+                StringBuilder sBuilder = new StringBuilder(lines.get(i));
+                if(i != lines.size() - 1) sBuilder.append("\n"); //Added to ensure the last line doesn't have a return character at the end
+                fw.write(sBuilder.toString()); //Adding to file
             }
         }
         catch(IOException e){System.out.println(e.getMessage());}
