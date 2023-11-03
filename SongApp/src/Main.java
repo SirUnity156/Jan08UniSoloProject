@@ -105,8 +105,6 @@ public class Main {
     public static List<Song> update(Path path) throws IOException{
         //Reading lines from the file
         List<Song> lines = getSongLines(path);
-        
-        boolean found = false;
         String line;
         int index = 0;
         do { //Loops until valid input
@@ -114,17 +112,28 @@ public class Main {
             System.out.println("Type \"back\" to return to the main menu");
             System.out.print(">> ");
             line = sc.nextLine();
+
             if(line.equalsIgnoreCase("back")) return null; //Null value is returned and read, informing the program to not make any changes and to take a new command
-            for (int i = 0; i < lines.size(); i++) {
-                if(lines.get(i).getName() == line);
-                found = true;
-                index = i;
-            }
-            if (!found) System.out.println("Song not found");
-        } while(!found);
+            index = findLineByName(lines, line);
+            if (index == -1) System.out.println("Song not found");
+        } while(index == -1);
         System.out.println("Song found!");
-        boolean validInput; //For validation
-        String song;
+        return updateInputLoop(lines, index);
+    }
+
+    /**Used as part of update method to find the index*/
+    public static int findLineByName(List<Song> lines, String line) {
+        for (int i = 0; i < lines.size(); i++) {
+            if(lines.get(i).getName() == line) return i;
+        }
+        //Returns -1 if index not found
+        return -1;
+    }
+
+    /**Handles the input validation for entering the song details for updating */
+    public static List<Song> updateInputLoop(List<Song> lines, int index) {
+        boolean validInput; //Flag marking validation status
+        String song; // input
         Song songSong = new Song("", "", 0);
         do { //Loops until valid input
             validInput = true;
@@ -232,7 +241,7 @@ public class Main {
     */
     public static void updateHistoryFile(String command, List<String> lines, Path historyPath) {
         int historyListCutoffLength = 10; //Used to set how many of the most recent commands are stored at a time
-        
+
         lines.add(command);
 
         //Loop to remove all commands over the cutoff  length
