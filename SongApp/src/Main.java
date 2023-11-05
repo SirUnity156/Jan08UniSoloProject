@@ -29,7 +29,6 @@ public class Main {
     static List<List<Song>> previousStates = new ArrayList<>(0);
 
     public static void main(String[] args) throws IOException {
-
         //Shutdown hook to display a message when the program closes for any reason.
         //This means that users will be able to see a message whether they use the exit command or just close the terminal/JVM itself.
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -129,7 +128,7 @@ public class Main {
             if (index == -1) System.out.println("Song not found");
         } while(index == -1);
         System.out.println("Song found!");
-        return updateInputLoop(lines, index);
+        return getUpdateInput(lines, index);
     }
 
     /**Used as part of update method to find the index*/
@@ -142,7 +141,7 @@ public class Main {
     }
 
     /**Handles the input validation for entering the song details for updating */
-    public static List<Song> updateInputLoop(List<Song> lines, int index) {
+    public static List<Song> getUpdateInput(List<Song> lines, int index) {
         boolean validInput; //Flag marking validation status
         String song; // input
         Song songSong = new Song("", "", 0);
@@ -191,7 +190,7 @@ public class Main {
     /**Reads all lines from the file and saves them to a Song list to be returned.
      * If input file is empty, an empty song list is returned.
     */
-    public static List<Song> getSongLines(Path path) throws IOException {
+    public static List<Song> getSongLines(Path path) throws IOException{
         //Reading all the files lines into a list
         List<String> lines = Files.readAllLines(path, StandardCharsets.UTF_8);
         List<Song> songList = new ArrayList<>();
@@ -236,13 +235,27 @@ public class Main {
 
     /**Saves lines back to specified file*/
     public static void updateSongFile(List<Song> lines, Path path) throws IOException {
-        //Makes FileWriter object
-        FileWriter fw = new FileWriter(path.getFileName().toString());
+        List<String> stringLines = new ArrayList<>(0);
         //Loops through lines and formats them to be saved to file
-        for(int i = 0; i < lines.size(); i++) {
-            StringBuilder sBuilder = new StringBuilder(lines.get(i).getName() + ", " + lines.get(i).getArtist() + ", " + lines.get(i).getPlays());
-            if(i != lines.size()-1) sBuilder.append("\n"); //Added to ensure the last line doesn't have a return character at the end
-            fw.write(sBuilder.toString()); //Adds to file
+        for (Song song : lines) {
+            String line = song.getName() + ", " + song.getArtist() + ", " + song.getPlays();
+            stringLines.add(line);
+        }
+        writeLinesToFile(stringLines, path);
+    }
+
+    public static void writeLinesToFile(List<String> lines, Path path) throws IOException {
+        FileWriter fw;
+        try {
+            fw = new FileWriter(path.getFileName().toString());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        //Loops through lines and formats them to be saved to file
+        for (int i = 0; i < lines.size(); i++) {
+            StringBuilder sBuilder = new StringBuilder(lines.get(i));
+            if(i != lines.size() - 1) sBuilder.append("\n"); //Added to ensure the last line doesn't have a return character at the end
+            fw.write(sBuilder.toString()); //Adding to file
         }
         fw.close();
     }
@@ -258,19 +271,12 @@ public class Main {
         //Loop to remove all commands over the cutoff  length
         while(lines.size() > historyListCutoffLength) lines.remove(0);
         //The reason of why I use a loop for this instead of a selection is there may be multiple lines too many if the files have been manually edited or if the program gets updated to use a shorter cutoff length
-        
-        //FileWriter needs a try or throws statement to be used to attempt file editing
-        try (
-        //Makes FileWriter object
-        FileWriter fw = new FileWriter(historyPath.getFileName().toString())) {
-            //Loops through lines and formats them to be saved to file
-            for (int i = 0; i < lines.size(); i++) {
-                StringBuilder sBuilder = new StringBuilder(lines.get(i));
-                if(i != lines.size() - 1) sBuilder.append("\n"); //Added to ensure the last line doesn't have a return character at the end
-                fw.write(sBuilder.toString()); //Adding to file
-            }
+
+        try {
+            writeLinesToFile(lines, historyPath);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
-        catch(IOException e){System.out.println(e.getMessage());}
     }
 
     /**Adds the most recent completion code to the debug file*/
@@ -284,15 +290,7 @@ public class Main {
         //Loop to remove all commands over the cutoff length
         while(debugLines.size() > debugListCutoffLength) debugLines.remove(0);
 
-        //Formats line and writes to file
-        StringBuilder sb = new StringBuilder();
-        for(String line : debugLines) {
-            sb.append(line);
-            sb.append("\n");
-        }
-        FileWriter fw = new FileWriter(debugPath.getFileName().toString());
-        fw.write(sb.toString());
-        fw.close();
+        writeLinesToFile(debugLines, debugPath);
     }
 
     /**Adds a new state to the previous state list and shortens it if the list is too long*/
@@ -448,14 +446,20 @@ public class Main {
 
     /**Displays all logged completion codes*/
     public static void printCompletionCodes(Path debugPath) {
-        List<String> lines = null; //Initialised to null as may not otherwise be initialised if readAllLines throws an exception
+        List<String> lines;
         try {
             lines = Files.readAllLines(debugPath);
         }
         catch (IOException e) {
-            System.out.println(e.getMessage());
+            throw new RuntimeException(e);
         }
-        if(lines == null) return;
         printList(lines);
+    }
+
+    /**Returns a value that codes for program exit when read by larger context*/
+    public static List<Song> exit() {
+        List<Song> tempList = new ArrayList<>(0); //To be returned
+        tempList.add(new Song("", "", -1)); //This song codes for the exit command
+        return tempList;
     }
 }

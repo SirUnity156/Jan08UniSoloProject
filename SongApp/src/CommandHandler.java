@@ -1,10 +1,9 @@
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 
 /**--Obligatory essay explaining why things are the way they are--
- * Handles the logic of which command to execute. Designed with the goal of minimising the number selection statements in order to reduce cyclomatic complexity (cc).
+ * Handles the logic of which command to execute. Designed with the goal of minimising the number of selection statements in order to reduce cyclomatic complexity (cc).
  * This has replaced a lot of the code that was in takeCommand (which itself had already been split into 3 quite large methods due to incredibly high cc)
  * This implementation has cleared up the code and improved readability significantly
  * The goal of minimal selection statements has been achieved as follows:
@@ -31,7 +30,7 @@ public class CommandHandler {
         this.debugPath = debugPath;
     }
 
-    /**The Command interface serves as the first-class object vessel surrounding the abstract method that I alter with polymorphism*/
+    /**The Command interface serves as the first-class object vessel surrounding the abstract method which is altered with polymorphism*/
     private interface Command {
         //Empty abstract method to be overwritten
         List<Song> execute();
@@ -46,22 +45,18 @@ public class CommandHandler {
         new Command() { public List<Song> execute() { return Main.undo(historyLines, historyPath);} } , //undo
         new Command() { public List<Song> execute() { Main.help(historyLines, historyPath); return null; } }, //help
         new Command() { public List<Song> execute() { Main.printList(historyLines); return null; } }, //printList
-        () -> new ArrayList<Song>(0), //exit
+        new Command() { public List<Song> execute() { return Main.exit(); } }, //exit
         new Command() { public List<Song> execute() {
             try {
                 return Main.update(songPath);
-            } catch (IOException e){System.out.println(e.getMessage());} return null; } }, //update
-        new Command() { public List<Song> execute() { Main.printCompletionCodes(debugPath); return null; } }, //printSongs
+            }
+            catch (IOException e){System.out.println(e.getMessage());} return null; } }, //update
+        new Command() { public List<Song> execute() { Main.printCompletionCodes(debugPath); return null; } }, //printCompletionCodes
     };
 
-    /**Searches through the accepted inputs to see if any match the input. Relevant method is then called from the methods array */
+    /**Searches through the accepted inputs to see if any match the input. Relevant method is then called from the methods array*/
     public List<Song> handleCommand(String input) {
         for (int i = 0; i < acceptedInputs.length; i++) {
-            if(input.equalsIgnoreCase("exit")) {
-                List<Song> tempList = new ArrayList<>(0); //To be returned
-                tempList.add(new Song("", "", -1)); //This song codes for the exit command when read by the larger context
-                return tempList;
-            }
             if(input.equalsIgnoreCase(acceptedInputs[i])) return methods[i].execute(); //Executes relevant command if recognised
         }
         //Reached if input not accepted
