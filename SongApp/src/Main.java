@@ -7,12 +7,14 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Scanner;
 
 /*Planned Development
 - "redo" command - reverses the changes made by undo (do this by changing how undo() works such that undone states are not deleted and the current position on the state timeline should be stored in the file
 - Cut down the number of parameters requested by a method by getting file states within each method rather than passing them in
 - "Debug" dev command showing all previous takeCommand completion number
+- Create generic "updateFile" function to prevent code repetition in updateSongFile, updateHistoryFile & updateDebugFile
 */
 
 public class Main {
@@ -25,14 +27,14 @@ public class Main {
     //I have elected to store the previous states internally within the program rather than in an external file so that all data of previous states are lost. This prevents users from being able to undo changes made in previous instances of the program, thereby eliminating a source of user confusion/privacy breach
     //Once again, as with global Scanner, the purpose of this variable being global is to reduce the quantity of arguments required to be passed into the local contexts
     static List<List<Song>> previousStates = new ArrayList<>(0);
+
     public static void main(String[] args) throws IOException {
+
         //Shutdown hook to display a message when the program closes for any reason.
         //This means that users will be able to see a message whether they use the exit command or just close the terminal/JVM itself.
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            public void run() {
-                System.out.println("Shutting down..."); // Code to run on exit
-            }
-        });
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.println("Shutting down..."); // Code to run on exit
+        }));
 
         //File path and file object instantiation
 
@@ -50,12 +52,16 @@ public class Main {
 
         //Creates a file if it isn't already present
         //If the file isn't already present, the user is notified that a new file has been created
-        if(songFile.createNewFile()) System.out.println("--Notice-- Sorry, we weren't able to locate the song list file on your device. A new, blank file has been created for you");
-        if(historyFile.createNewFile()) System.out.println("--Notice-- Sorry, we weren't able to locate the command history file on your device. A new, blank file has been created for you");
+        if(songFile.createNewFile()) System.out.println("--Notice-- Sorry, we weren't able to locate the song list file on your device. A new file has been created for you");
+        if(historyFile.createNewFile()) System.out.println("--Notice-- Sorry, we weren't able to locate the command history file on your device. A new file has been created for you");
+        //noinspection ResultOfMethodCallIgnored
         debugFile.createNewFile(); //Ensure existence of debugFile
-        //This will be used in the debug log to track types of command completions happening in the code (exits, no file change, file change etc) for aid in development and debugging
-        int completionCode = -1; //Initialised to -1 as not to conflict with the genuine completion codes (which are all 0 or greater)
-        while(completionCode != 0) { //Loops until the completion code is 0 (resulting from user exit)
+
+        //This will be used in the debug log to track types of command completions happening in the code (exits, no file change, file change etc.) for aid in development and debugging
+        int completionCode;
+
+        //Loops until the completion code is 0 (resulting from user exit)
+        do {
             //Read all lines from relevant files
             List<Song> lines = getSongLines(songPath);
             List<String> historyLines = Files.readAllLines(historyPath, StandardCharsets.UTF_8);
@@ -66,15 +72,17 @@ public class Main {
              * 1 - completed with no file change
              * 2 - completed with file change
              */
-            completionCode = takeCommand(lines, songPath, historyPath, historyLines);
-        }
+            completionCode = takeCommand(lines, songPath, historyPath, historyLines, debugPath);
+            updateDebugFile(completionCode, debugPath);
+
+        } while(completionCode != 0);
     }
 
     /**Takes in the user input and consults a CommandHandler object to execute the appropriate block of code.
      * If command isn't recognised, it informs the user.
      * Integer return value represents the completion code
     */
-    public static int takeCommand(List<Song> lines, Path songPath, Path historyPath, List<String> historyLines) throws IOException {
+    public static int takeCommand(List<Song> lines, Path songPath, Path historyPath, List<String> historyLines, Path debugPath) throws IOException {
         //User messages
         System.out.println();
         System.out.println("Main Menu");
@@ -86,8 +94,8 @@ public class Main {
         int tempPrevStateLen = previousStates.size();
         List<Song> prevState = listAssignWithoutReference(lines);
 
-        //CommandHandler object taking input and directing directing the call to the right method and returning the state of the song list after command execution
-        List<Song> newLines = (new CommandHandler(lines, historyPath, historyLines, songPath).handleCommand(input));
+        //CommandHandler object taking input and directing the call to the right method and returning the state of the song list after command execution
+        List<Song> newLines = (new CommandHandler(lines, historyPath, historyLines, songPath, debugPath).handleCommand(input));
 
         if(newLines == null) return 1; //A return value of null means that no changes have been made and the file does not need to be updated
         if(newLines.size() == 1 && newLines.get(0).getPlays() == -1) return 0; //User has entered the exit command and the command will close
@@ -109,7 +117,7 @@ public class Main {
         //Reading lines from the file
         List<Song> lines = getSongLines(path);
         String line;
-        int index = 0;
+        int index;
         do { //Loops until valid input
             System.out.println("Enter the current name of the song that you wish to update");
             System.out.println("Type \"back\" to return to the main menu");
@@ -127,7 +135,7 @@ public class Main {
     /**Used as part of update method to find the index*/
     public static int findLineByName(List<Song> lines, String line) {
         for (int i = 0; i < lines.size(); i++) {
-            if(lines.get(i).getName() == line) return i;
+            if(Objects.equals(lines.get(i).getName(), line)) return i;
         }
         //Returns -1 if index not found
         return -1;
@@ -226,7 +234,7 @@ public class Main {
         if(!hasSongsOverMin) System.out.println("Sorry, there are no songs stored above your desired minimum plays");
     }
 
-    /**Saves lines back to specified file.*/
+    /**Saves lines back to specified file*/
     public static void updateSongFile(List<Song> lines, Path path) throws IOException {
         //Makes FileWriter object
         FileWriter fw = new FileWriter(path.getFileName().toString());
@@ -248,7 +256,8 @@ public class Main {
         lines.add(command);
 
         //Loop to remove all commands over the cutoff  length
-        while(lines.size() > historyListCutoffLength) lines.remove(0); //The reason of why I use a loop for this instead of a selection is there may be multiple lines too many if the files have been manually edited or if the program gets updated to use a shorter cutoff length
+        while(lines.size() > historyListCutoffLength) lines.remove(0);
+        //The reason of why I use a loop for this instead of a selection is there may be multiple lines too many if the files have been manually edited or if the program gets updated to use a shorter cutoff length
         
         //FileWriter needs a try or throws statement to be used to attempt file editing
         try (
@@ -262,6 +271,28 @@ public class Main {
             }
         }
         catch(IOException e){System.out.println(e.getMessage());}
+    }
+
+    /**Adds the most recent completion code to the debug file*/
+    public static void updateDebugFile(int completionCode, Path debugPath) throws IOException {
+        int debugListCutoffLength = 100; //Used to set how many of the most recent completion codes are stored at a time
+
+        //Gets lines and adds new line
+        List<String> debugLines = Files.readAllLines(debugPath, StandardCharsets.UTF_8);
+        debugLines.add(String.valueOf(completionCode));
+
+        //Loop to remove all commands over the cutoff length
+        while(debugLines.size() > debugListCutoffLength) debugLines.remove(0);
+
+        //Formats line and writes to file
+        StringBuilder sb = new StringBuilder();
+        for(String line : debugLines) {
+            sb.append(line);
+            sb.append("\n");
+        }
+        FileWriter fw = new FileWriter(debugPath.getFileName().toString());
+        fw.write(sb.toString());
+        fw.close();
     }
 
     /**Adds a new state to the previous state list and shortens it if the list is too long*/
@@ -411,9 +442,20 @@ public class Main {
      */
     public static <T> List<T> listAssignWithoutReference(List<T> toBeAssigned) {
         List<T> newList = new ArrayList<>(0);
-        for (int i = 0; i < toBeAssigned.size(); i++) {
-            newList.add(toBeAssigned.get(i));
-        }
+        newList.addAll(toBeAssigned);
         return newList;
+    }
+
+    /**Displays all logged completion codes*/
+    public static void printCompletionCodes(Path debugPath) {
+        List<String> lines = null; //Initialised to null as may not otherwise be initialised if readAllLines throws an exception
+        try {
+            lines = Files.readAllLines(debugPath);
+        }
+        catch (IOException e) {
+            System.out.println(e.getMessage());
+        }
+        if(lines == null) return;
+        printList(lines);
     }
 }
