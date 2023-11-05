@@ -15,18 +15,20 @@ import java.util.List;
  * I'm most likely going to move most of this code into Main.java because currently handleCommand calls the functions by crossing into the Main.java file which is a not great way to do it. Moving it into Main.java will remove the requirement to cross files for the function calls
 */
 public class CommandHandler {
-    private final String[] acceptedInputs = {"all_songs", "plays_over", "add", "remove", "undo", "help", "history", "exit", "update"};
+    private final String[] acceptedInputs = {"all_songs", "plays_over", "add", "remove", "undo", "help", "history", "exit", "update", "debug"};
     private final List<Song> lines;
     private final Path historyPath;
     private final List<String> historyLines;
     private final Path songPath;
+    private final Path debugPath;
 
     /**Applies values to attributes*/
-    public CommandHandler(List<Song> lines, Path historyPath, List<String> historyLines, Path songPath) {
+    public CommandHandler(List<Song> lines, Path historyPath, List<String> historyLines, Path songPath, Path debugPath) {
         this.lines = lines;
         this.historyPath = historyPath;
         this.historyLines = historyLines;
         this.songPath = songPath;
+        this.debugPath = debugPath;
     }
 
     /**The Command interface serves as the first-class object vessel surrounding the abstract method that I alter with polymorphism*/
@@ -44,18 +46,19 @@ public class CommandHandler {
         new Command() { public List<Song> execute() { return Main.undo(historyLines, historyPath);} } , //undo
         new Command() { public List<Song> execute() { Main.help(historyLines, historyPath); return null; } }, //help
         new Command() { public List<Song> execute() { Main.printList(historyLines); return null; } }, //printList
-        () -> { return new ArrayList<Song>(0); }, //exit
+        () -> new ArrayList<Song>(0), //exit
         new Command() { public List<Song> execute() {
             try {
                 return Main.update(songPath);
-            } catch (IOException e){} return null; } }, //update
+            } catch (IOException e){System.out.println(e.getMessage());} return null; } }, //update
+        new Command() { public List<Song> execute() { Main.printCompletionCodes(debugPath); return null; } }, //printSongs
     };
 
     /**Searches through the accepted inputs to see if any match the input. Relevant method is then called from the methods array */
     public List<Song> handleCommand(String input) {
         for (int i = 0; i < acceptedInputs.length; i++) {
             if(input.equalsIgnoreCase("exit")) {
-                List<Song> tempList = new ArrayList<Song>(0); //To be returned
+                List<Song> tempList = new ArrayList<>(0); //To be returned
                 tempList.add(new Song("", "", -1)); //This song codes for the exit command when read by the larger context
                 return tempList;
             }

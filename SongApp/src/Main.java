@@ -72,7 +72,7 @@ public class Main {
              * 1 - completed with no file change
              * 2 - completed with file change
              */
-            completionCode = takeCommand(lines, songPath, historyPath, historyLines);
+            completionCode = takeCommand(lines, songPath, historyPath, historyLines, debugPath);
             updateDebugFile(completionCode, debugPath);
 
         } while(completionCode != 0);
@@ -82,7 +82,7 @@ public class Main {
      * If command isn't recognised, it informs the user.
      * Integer return value represents the completion code
     */
-    public static int takeCommand(List<Song> lines, Path songPath, Path historyPath, List<String> historyLines) throws IOException {
+    public static int takeCommand(List<Song> lines, Path songPath, Path historyPath, List<String> historyLines, Path debugPath) throws IOException {
         //User messages
         System.out.println();
         System.out.println("Main Menu");
@@ -95,7 +95,7 @@ public class Main {
         List<Song> prevState = listAssignWithoutReference(lines);
 
         //CommandHandler object taking input and directing the call to the right method and returning the state of the song list after command execution
-        List<Song> newLines = (new CommandHandler(lines, historyPath, historyLines, songPath).handleCommand(input));
+        List<Song> newLines = (new CommandHandler(lines, historyPath, historyLines, songPath, debugPath).handleCommand(input));
 
         if(newLines == null) return 1; //A return value of null means that no changes have been made and the file does not need to be updated
         if(newLines.size() == 1 && newLines.get(0).getPlays() == -1) return 0; //User has entered the exit command and the command will close
@@ -444,5 +444,18 @@ public class Main {
         List<T> newList = new ArrayList<>(0);
         newList.addAll(toBeAssigned);
         return newList;
+    }
+
+    /**Displays all logged completion codes*/
+    public static void printCompletionCodes(Path debugPath) {
+        List<String> lines = null; //Initialised to null as may not otherwise be initialised if readAllLines throws an exception
+        try {
+            lines = Files.readAllLines(debugPath);
+        }
+        catch (IOException e) {
+            System.out.println(e.getMessage());
+        }
+        if(lines == null) return;
+        printList(lines);
     }
 }
