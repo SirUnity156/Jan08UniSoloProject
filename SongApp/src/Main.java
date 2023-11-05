@@ -12,7 +12,6 @@ import java.util.Scanner;
 /*Planned Development
 - "redo" command - reverses the changes made by undo (do this by changing how undo() works such that undone states are not deleted and the current position on the state timeline should be stored in the file
 - Cut down the number of parameters requested by a method by getting file states within each method rather than passing them in
-- Reduce cyclomatic complexity and remove bumpy road in update
 - "Debug" dev command showing all previous takeCommand completion number
 */
 
@@ -45,11 +44,15 @@ public class Main {
         Path historyPath = Paths.get("commandHistory.txt");
         File historyFile = new File(historyPath.getFileName().toString());
 
+        //Stores the history of completion codes
+        Path debugPath = Paths.get("debug.txt");
+        File debugFile = new File(debugPath.getFileName().toString());
+
         //Creates a file if it isn't already present
         //If the file isn't already present, the user is notified that a new file has been created
         if(songFile.createNewFile()) System.out.println("--Notice-- Sorry, we weren't able to locate the song list file on your device. A new, blank file has been created for you");
         if(historyFile.createNewFile()) System.out.println("--Notice-- Sorry, we weren't able to locate the command history file on your device. A new, blank file has been created for you");
-
+        debugFile.createNewFile(); //Ensure existence of debugFile
         //This will be used in the debug log to track types of command completions happening in the code (exits, no file change, file change etc) for aid in development and debugging
         int completionCode = -1; //Initialised to -1 as not to conflict with the genuine completion codes (which are all 0 or greater)
         while(completionCode != 0) { //Loops until the completion code is 0 (resulting from user exit)
