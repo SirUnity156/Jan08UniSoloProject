@@ -13,8 +13,6 @@ import java.util.Scanner;
 /*Planned Development
 - "redo" command - reverses the changes made by undo (do this by changing how undo() works such that undone states are not deleted and the current position on the state timeline should be stored in the file
 - Cut down the number of parameters requested by a method by getting file states within each method rather than passing them in
-- "Debug" dev command showing all previous takeCommand completion number
-- Create generic "updateFile" function to prevent code repetition in updateSongFile, updateHistoryFile & updateDebugFile
 */
 
 public class Main {
@@ -62,7 +60,6 @@ public class Main {
         //Loops until the completion code is 0 (resulting from user exit)
         do {
             //Read all lines from relevant files
-            List<Song> lines = getSongLines(songPath);
             List<String> historyLines = Files.readAllLines(historyPath, StandardCharsets.UTF_8);
 
             //Saves completion code for debug log
@@ -71,7 +68,7 @@ public class Main {
              * 1 - completed with no file change
              * 2 - completed with file change
              */
-            completionCode = takeCommand(lines, songPath, historyPath, historyLines, debugPath);
+            completionCode = takeCommand(songPath, historyPath, historyLines, debugPath);
             updateDebugFile(completionCode, debugPath);
 
         } while(completionCode != 0);
@@ -81,7 +78,8 @@ public class Main {
      * If command isn't recognised, it informs the user.
      * Integer return value represents the completion code
     */
-    public static int takeCommand(List<Song> lines, Path songPath, Path historyPath, List<String> historyLines, Path debugPath) throws IOException {
+    public static int takeCommand(Path songPath, Path historyPath, List<String> historyLines, Path debugPath) throws IOException {
+        List<Song> lines = getSongLines(songPath);
         //User messages
         System.out.println();
         System.out.println("Main Menu");
@@ -143,7 +141,7 @@ public class Main {
     /**Handles the input validation for entering the song details for updating */
     public static List<Song> getUpdateInput(List<Song> lines, int index) {
         boolean validInput; //Flag marking validation status
-        String song; // input
+        String song; //Input
         Song songSong = new Song("", "", 0);
         do { //Loops until valid input
             validInput = true;
