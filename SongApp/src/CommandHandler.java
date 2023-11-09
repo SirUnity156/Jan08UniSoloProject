@@ -11,7 +11,6 @@ import java.util.List;
  * That index is used to access an element from the Command interface array, each interface has an abstract method that has been set to execute one of the commands.
  * In effect, this allows me to create an array of methods which can be called using the interface array and their index. Something which is reminiscent of what is possible in the functional programming paradigm (An example would be Kotlin, which would have made me much happier if it was the language we used for this module)
  * Unfortunately, as Java is Object-Oriented, it doesn't allow methods to be treated as first-class objects. Hence, the heavy-handed approach I've had to take here.
- * I'm most likely going to move most of this code into Main.java because currently handleCommand calls the functions by crossing into the Main.java file which is a not great way to do it. Moving it into Main.java will remove the requirement to cross files for the function calls
 */
 public class CommandHandler {
     private final String[] acceptedInputs = {"all_songs", "plays_over", "add", "remove", "undo", "help", "history", "exit", "update", "debug"};
@@ -46,11 +45,7 @@ public class CommandHandler {
         new Command() { public List<Song> execute() { Main.help(historyLines, historyPath); return null; } }, //help
         new Command() { public List<Song> execute() { Main.printList(historyLines); return null; } }, //printList
         new Command() { public List<Song> execute() { return Main.exit(); } }, //exit
-        new Command() { public List<Song> execute() {
-            try {
-                return Main.update(songPath);
-            }
-            catch (IOException e){System.out.println(e.getMessage());} return null; } }, //update
+        new Command() { public List<Song> execute() { try { return Main.update(songPath); } catch (IOException e){System.out.println(e.getMessage());} return null; } }, //update
         new Command() { public List<Song> execute() { Main.printCompletionCodes(debugPath); return null; } }, //printCompletionCodes
     };
 
@@ -59,6 +54,7 @@ public class CommandHandler {
         for (int i = 0; i < acceptedInputs.length; i++) {
             if(input.equalsIgnoreCase(acceptedInputs[i])) return methods[i].execute(); //Executes relevant command if recognised
         }
+
         //Reached if input not accepted
         Main.unrecognisedCommand();
         return null;

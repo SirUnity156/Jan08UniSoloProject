@@ -10,10 +10,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Scanner;
 
-/*Planned Development
-- "redo" command - reverses the changes made by undo (do this by changing how undo() works such that undone states are not deleted and the current position on the state timeline should be stored in the file
-- Cut down the number of parameters requested by a method by getting file states within each method rather than passing them in
-*/
 
 public class Main {
     //Global Scanner variable
@@ -51,6 +47,8 @@ public class Main {
         //If the file isn't already present, the user is notified that a new file has been created
         if(songFile.createNewFile()) System.out.println("--Notice-- Sorry, we weren't able to locate the song list file on your device. A new file has been created for you");
         if(historyFile.createNewFile()) System.out.println("--Notice-- Sorry, we weren't able to locate the command history file on your device. A new file has been created for you");
+        //No requirement for "else" as false result means everything is alright
+
         //noinspection ResultOfMethodCallIgnored
         debugFile.createNewFile(); //Ensure existence of debugFile
 
@@ -60,6 +58,7 @@ public class Main {
         //Loops until the completion code is 0 (resulting from user exit)
         do {
             //Read all lines from relevant files
+            List<Song> lines = getSongLines(songPath);
             List<String> historyLines = Files.readAllLines(historyPath, StandardCharsets.UTF_8);
 
             //Saves completion code for debug log
@@ -68,7 +67,7 @@ public class Main {
              * 1 - completed with no file change
              * 2 - completed with file change
              */
-            completionCode = takeCommand(songPath, historyPath, historyLines, debugPath);
+            completionCode = takeCommand(lines, songPath, historyPath, historyLines, debugPath);
             updateDebugFile(completionCode, debugPath);
 
         } while(completionCode != 0);
@@ -78,8 +77,7 @@ public class Main {
      * If command isn't recognised, it informs the user.
      * Integer return value represents the completion code
     */
-    public static int takeCommand(Path songPath, Path historyPath, List<String> historyLines, Path debugPath) throws IOException {
-        List<Song> lines = getSongLines(songPath);
+    public static int takeCommand(List<Song> lines, Path songPath, Path historyPath, List<String> historyLines, Path debugPath) throws IOException {
         //User messages
         System.out.println();
         System.out.println("Main Menu");
@@ -113,8 +111,10 @@ public class Main {
     public static List<Song> update(Path path) throws IOException{
         //Reading lines from the file
         List<Song> lines = getSongLines(path);
+
         String line;
         int index;
+
         do { //Loops until valid input
             System.out.println("Enter the current name of the song that you wish to update");
             System.out.println("Type \"back\" to return to the main menu");
@@ -122,9 +122,12 @@ public class Main {
             line = sc.nextLine();
 
             if(line.equalsIgnoreCase("back")) return null; //Null value is returned and read, informing the program to not make any changes and to take a new command
+
             index = findLineByName(lines, line);
-            if (index == -1) System.out.println("Song not found");
+            if(index == -1) System.out.println("Song not found");
+
         } while(index == -1);
+
         System.out.println("Song found!");
         return getUpdateInput(lines, index);
     }
@@ -132,8 +135,9 @@ public class Main {
     /**Used as part of update method to find the index*/
     public static int findLineByName(List<Song> lines, String line) {
         for (int i = 0; i < lines.size(); i++) {
-            if(Objects.equals(lines.get(i).getName(), line)) return i;
+            if(Objects.equals(lines.get(i).getName(), line))  return i;
         }
+
         //Returns -1 if index not found
         return -1;
     }
@@ -141,15 +145,21 @@ public class Main {
     /**Handles the input validation for entering the song details for updating */
     public static List<Song> getUpdateInput(List<Song> lines, int index) {
         boolean validInput; //Flag marking validation status
-        String song; //Input
+        String song; // input
         Song songSong = new Song("", "", 0);
+
         do { //Loops until valid input
             validInput = true;
+
+            //User messages
             System.out.println("Enter the new details for the song in following format: name, artist, plays");
             System.out.println("Type \"back\" to return to the main menu");
             System.out.print(">> ");
+
             song = sc.nextLine();
+
             if(song.equalsIgnoreCase("back")) return null; //Null value is returned and read, informing the program to not make any changes and to take a new command
+
             //Input Validation
             try {songSong = makeSongFromInput(song);}
             catch (IOException e) {
@@ -162,7 +172,9 @@ public class Main {
                 validInput = false;
                 System.out.println("Sorry, it appears you have entered an invalid number for the play count. Please ensure you enter a positive whole number");
             }
+
         } while(!validInput);
+
         //Applying and returning values
         lines.set(index, songSong);
         return lines;
@@ -177,6 +189,7 @@ public class Main {
         System.out.println("history - This command will show you the last 10 commands that have been entered (Oldest to newest)");
         System.out.println("undo - This command will allow you to undo changes you have made to the song file, please not that you cannot undo changes from previous instances of the application");
         System.out.println("update - This command will allow you to update the details of songs already stored in the application");
+
         updateHistoryFile("help", historyLines, historyPath);
     }
 
@@ -192,10 +205,12 @@ public class Main {
         //Reading all the files lines into a list
         List<String> lines = Files.readAllLines(path, StandardCharsets.UTF_8);
         List<Song> songList = new ArrayList<>();
+
         for (String line : lines) {
             //Formatting file lines into a Song list
             songList.add(makeSongFromInput(line));
         }
+
         return songList;
     }
 
@@ -203,11 +218,12 @@ public class Main {
      * If no songs stored, prints message and returns.
      */
     public static void printSongs(List<Song> lines, List<String> historyLines, Path historyPath) {
-        //Checks if any songs stored
+        //Checks if no songs stored and returns if empty
         if(lines.isEmpty()) {
             System.out.println("No songs currently stored");
             return;
         }
+
         //Otherwise prints them all
         for (Song song : lines) {
             System.out.println(song.getName());
@@ -220,13 +236,15 @@ public class Main {
      */
     public static void printSongsOverNum(List<Song> lines, int minPlays) {
         boolean hasSongsOverMin = false; //Used to know whether if any applicable songs exist
+
         for (Song song: lines) {
             //Iterates through and checks if song has sufficient plays
             if(song.getPlays() > minPlays) {
-                System.out.println(song.getName());
+                System.out.println(song.getName() + ": " + song.getPlays());
                 hasSongsOverMin = true;
             }
         }
+
         //Message for user if no matches
         if(!hasSongsOverMin) System.out.println("Sorry, there are no songs stored above your desired minimum plays");
     }
@@ -234,27 +252,28 @@ public class Main {
     /**Saves lines back to specified file*/
     public static void updateSongFile(List<Song> lines, Path path) throws IOException {
         List<String> stringLines = new ArrayList<>(0);
+
         //Loops through lines and formats them to be saved to file
         for (Song song : lines) {
             String line = song.getName() + ", " + song.getArtist() + ", " + song.getPlays();
             stringLines.add(line);
         }
+
         writeLinesToFile(stringLines, path);
     }
 
+    /**Takes a list of strings and writes them to the file at the specified path*/
     public static void writeLinesToFile(List<String> lines, Path path) throws IOException {
-        FileWriter fw;
-        try {
-            fw = new FileWriter(path.getFileName().toString());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        //FileWriter object for setting file contents
+        FileWriter fw = new FileWriter(path.getFileName().toString());
+
         //Loops through lines and formats them to be saved to file
         for (int i = 0; i < lines.size(); i++) {
             StringBuilder sBuilder = new StringBuilder(lines.get(i));
             if(i != lines.size() - 1) sBuilder.append("\n"); //Added to ensure the last line doesn't have a return character at the end
             fw.write(sBuilder.toString()); //Adding to file
         }
+
         fw.close();
     }
 
@@ -272,7 +291,8 @@ public class Main {
 
         try {
             writeLinesToFile(lines, historyPath);
-        } catch (IOException e) {
+        }
+        catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
@@ -301,24 +321,32 @@ public class Main {
     /**Prints all songs over specified play threshold.*/
     public static void playsOver(List<Song> lines, List<String> historyLines, Path historyPath) {
         boolean isntInt; //Used for input validation
-        int minimum; //Represents the minimum number of plays a song is required to have to be included in the search result0
+        int minimum; //Represents the minimum number of plays a song is required to have to be included in the search result
+
         //Loops until valid input
         do{
             minimum = 0;
             isntInt = false; // Used in validation process
+
             //User messages
             System.out.println("Please enter your desired minimum play count");
             System.out.println("Type \"back\" to return to the main menu");
             System.out.print(">> ");
+
             String input = sc.nextLine();
+
             if(input.equals("back")) return; //This ends the procedure early and returns to the main menu
+
             //Input validation
             try {minimum = Integer.parseInt(input);}
             catch (NumberFormatException e) {
                 isntInt = true;
                 System.out.println("Sorry, it appears you have entered an invalid number. Please ensure you enter a positive whole number");
             }
+
         } while(isntInt);
+
+        //Execute command and log
         printSongsOverNum(lines, minimum);
         updateHistoryFile("plays_over " + minimum, historyLines, historyPath);
     }
@@ -327,13 +355,18 @@ public class Main {
     public static List<Song> add(List<Song> lines, List<String> historyLines, Path historyPath) {
         boolean validInput; //For validation
         String song;
+
         do { //Loops until valid input
             validInput = true;
+
             System.out.println("Enter song details in following format: name, artist, plays");
             System.out.println("Type \"back\" to return to the main menu");
             System.out.print(">> ");
+
             song = sc.nextLine();
+
             if(song.equalsIgnoreCase("back")) return null; //Null value is returned and read, informing the program to not make any changes and to take a new command
+
             //Input Validation
             try {lines.add(makeSongFromInput(song));}
             catch (IOException e) {
@@ -346,10 +379,11 @@ public class Main {
                 validInput = false;
                 System.out.println("Sorry, it appears you have entered an invalid number for the play count. Please ensure you enter a positive whole number");
             }
+
         } while(!validInput);
+
         //Applies changes
         System.out.println("Song added");
-
         updateHistoryFile("add " + song, historyLines, historyPath);
         return lines;
     }
@@ -362,17 +396,21 @@ public class Main {
         boolean found; //Can you guess what needs to happen for this to become true?
         String line;
         List<Song> temp;
+
         do { //Loops until valid input
             System.out.println("Enter song name");
             System.out.println("Type \"back\" to return to the main menu");
             System.out.print(">> ");
+
             line = sc.nextLine();
             if(line.equalsIgnoreCase("back")) return null; //Null value is returned and read, informing the program to not make any changes and to take a new command
             
             temp = removeSong(lines, line);
             found = (temp != null); //If temp is null, it means that removeSong() was unable to find the desired element and found is set to false
-            if (!found) System.out.println("Song not found");
+            if(!found) System.out.println("Song not found");
+
         } while(!found);
+
         //Applies changes
         System.out.println("Song removed");
         updateHistoryFile("remove " + line, historyLines, historyPath);
@@ -387,12 +425,13 @@ public class Main {
     public static List<Song> removeSong(List<Song> lines, String line) {
         //Loops through to see if any songs matching the input are stored, then removes it.
         for (Song thisSong : lines) {
-            if (thisSong.getName().equals(line)) {
+            if(thisSong.getName().equals(line)) {
                 //When the song is found, it's then removed and the new list is returned
                 lines.remove(thisSong);
                 return lines;
             }
         }
+
         //Returns null if element not found
         return null;
     }
@@ -401,10 +440,13 @@ public class Main {
     public static Song makeSongFromInput(String line) throws IOException, NumberFormatException {
         //Split into name, artist and plays
         String[] details = line.split(", ");
+
         //Rest of validation for this section is done at function call
         if(details.length != 3) throw new IOException(); //Detects if user has inputted data incorrectly, I have decided to throw an IOException specifically since Exception is too broad and may lead to unintended exception catching
+
         int playCount = Integer.parseInt(details[2]);
         if(playCount < 0) throw new NumberFormatException(); // Ensuring the user entered a positive number (You can never trust the user)
+
         //Applies values
         return new Song(details[0], details[1], playCount);
         //If integer parsing fails, the NumberFormatException is caught in the surrounding context and the user is notified of their severe lapse in judgement
@@ -425,9 +467,12 @@ public class Main {
             System.out.println("Sorry, no changes have been recorded yet in this instance of the application");
             return null; //null return data is picked up after function call and interpreted accordingly
         }
+
         List<Song> temp = previousStates.get(previousStates.size()-1); //Used to store desired file contents state
         previousStates.remove(previousStates.size()-1); //Removes the state that was just undone (might reverse this in future to allow for redo feature)
         updateHistoryFile("undo", historyLines, historyPath);
+
+        System.out.println("The last change has been undone");
         return temp;
     }
 
@@ -445,12 +490,14 @@ public class Main {
     /**Displays all logged completion codes*/
     public static void printCompletionCodes(Path debugPath) {
         List<String> lines;
+
         try {
             lines = Files.readAllLines(debugPath);
         }
         catch (IOException e) {
             throw new RuntimeException(e);
         }
+
         printList(lines);
     }
 
