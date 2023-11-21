@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Scanner;
 
-
 public class Main {
     //Global Scanner variable
     //Wanted to avoid using global variables wherever possible but iterating over a local context containing Scanner definition and references leads to issues regarding the input reading
@@ -58,7 +57,7 @@ public class Main {
         //Loops until the completion code is 0 (resulting from user exit)
         do {
             //Read all lines from relevant files
-            List<Song> lines = getSongLines(songPath);
+            
             List<String> historyLines = Files.readAllLines(historyPath, StandardCharsets.UTF_8);
 
             //Saves completion code for debug log
@@ -66,8 +65,8 @@ public class Main {
              * 0 - exit
              * 1 - completed with no file change
              * 2 - completed with file change
-             */
-            completionCode = takeCommand(lines, songPath, historyPath, historyLines, debugPath);
+            */
+            completionCode = takeCommand(songPath, historyPath, historyLines, debugPath);
             updateDebugFile(completionCode, debugPath);
 
         } while(completionCode != 0);
@@ -77,7 +76,8 @@ public class Main {
      * If command isn't recognised, it informs the user.
      * Integer return value represents the completion code
     */
-    public static int takeCommand(List<Song> lines, Path songPath, Path historyPath, List<String> historyLines, Path debugPath) throws IOException {
+    public static int takeCommand(Path songPath, Path historyPath, List<String> historyLines, Path debugPath) throws IOException {
+        List<Song> lines = getSongLines(songPath);
         //User messages
         System.out.println();
         System.out.println("Main Menu");
@@ -87,13 +87,13 @@ public class Main {
 
         //Saves the state of the file before the command is executed
         int tempPrevStateLen = previousStates.size();
-        List<Song> prevState = listAssignWithoutReference(lines);
+        List<Song> prevState = listAssignByVal(lines);
 
         //CommandHandler object taking input and directing the call to the right method and returning the state of the song list after command execution
         List<Song> newLines = (new CommandHandler(lines, historyPath, historyLines, songPath, debugPath).handleCommand(input));
 
         if(newLines == null) return 1; //A return value of null means that no changes have been made and the file does not need to be updated
-        if(newLines.size() == 1 && newLines.get(0).getPlays() == -1) return 0; //User has entered the exit command and the command will close
+        if(newLines.size() == 1 && newLines.get(0).getPlays() == -1) return 0; //User has entered the exit command and the program will close
         
         //Update previous states if a change has happened
         if(previousStates.size() == tempPrevStateLen && newLines != prevState) updatePreviousStates(prevState);
@@ -112,6 +112,7 @@ public class Main {
         //Reading lines from the file
         List<Song> lines = getSongLines(path);
 
+        //Defined before loop to avoid repeated instantiation
         String line;
         int index;
 
@@ -123,6 +124,7 @@ public class Main {
 
             if(line.equalsIgnoreCase("back")) return null; //Null value is returned and read, informing the program to not make any changes and to take a new command
 
+            //Finds the line in SongList
             index = findLineByName(lines, line);
             if(index == -1) System.out.println("Song not found");
 
@@ -480,8 +482,8 @@ public class Main {
      * The reason that I don't just write newList = oldList is because that operation doesn't copy the values across to the new list object.
      * Instead, it sends the original object reference and any changes to the new list will also occur to the old list
      * This caused me significant mental anguish before I figured it out
-     */
-    public static <T> List<T> listAssignWithoutReference(List<T> toBeAssigned) {
+    */
+    public static <T> List<T> listAssignByVal(List<T> toBeAssigned) {
         List<T> newList = new ArrayList<>(0);
         newList.addAll(toBeAssigned);
         return newList;

@@ -12,6 +12,7 @@ import java.util.List;
  * In effect, this allows me to create an array of methods which can be called using the interface array and their index. Something which is reminiscent of what is possible in the functional programming paradigm (An example would be Kotlin, which would have made me much happier if it was the language we used for this module)
  * Unfortunately, as Java is Object-Oriented, it doesn't allow methods to be treated as first-class objects. Hence, the heavy-handed approach I've had to take here.
 */
+
 public class CommandHandler {
     private final String[] acceptedInputs = {"all_songs", "plays_over", "add", "remove", "undo", "help", "history", "exit", "update", "debug"};
     private final List<Song> lines;
@@ -35,8 +36,8 @@ public class CommandHandler {
         List<Song> execute();
     }
 
-    //interface array that stores the interfaces, each one with a unique method body
-    private final Command[] methods = new Command[] {
+    //interface array that stores the interfaces with unique method bodies
+    private final Command[] methods = {
         new Command() { public List<Song> execute() { Main.printSongs(lines, historyLines, historyPath); return null; } }, //printSongs
         new Command() { public List<Song> execute() { Main.playsOver(lines, historyLines, historyPath); return null; } }, //playsOver
         new Command() { public List<Song> execute() { return Main.add(lines, historyLines, historyPath); } }, //add
