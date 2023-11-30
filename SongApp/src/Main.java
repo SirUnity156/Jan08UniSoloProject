@@ -157,13 +157,16 @@ public class Main {
             System.out.println("Enter the new details for the song in following format: name, artist, plays");
             System.out.println("Type \"back\" to return to the main menu");
             System.out.print(">> ");
-
+            
             song = sc.nextLine();
 
             if(song.equalsIgnoreCase("back")) return null; //Null value is returned and read, informing the program to not make any changes and to take a new command
 
             //Input Validation
-            try {songSong = makeSongFromInput(song);}
+            try {
+                songSong = makeSongFromInput(song);
+                if(songSong.getPlays() < 0) throw new NumberFormatException();
+            }
             catch (IOException e) {
                 //Executes if the format doesn't match the expected format
                 validInput = false;
@@ -174,7 +177,6 @@ public class Main {
                 validInput = false;
                 System.out.println("Sorry, it appears you have entered an invalid number for the play count. Please ensure you enter a positive whole number");
             }
-
         } while(!validInput);
 
         //Applying and returning values
@@ -337,10 +339,13 @@ public class Main {
 
             String input = sc.nextLine();
 
-            if(input.equals("back")) return; //This ends the procedure early and returns to the main menu
+            if(input.equalsIgnoreCase("back")) return; //This ends the procedure early and returns to the main menu
 
             //Input validation
-            try {minimum = Integer.parseInt(input);}
+            try {
+                minimum = Integer.parseInt(input);
+                if(minimum < 0) throw new NumberFormatException();
+            }
             catch (NumberFormatException e) {
                 isntInt = true;
                 System.out.println("Sorry, it appears you have entered an invalid number. Please ensure you enter a positive whole number");
@@ -427,7 +432,7 @@ public class Main {
     public static List<Song> removeSong(List<Song> lines, String line) {
         //Loops through to see if any songs matching the input are stored, then removes it.
         for (Song thisSong : lines) {
-            if(thisSong.getName().equals(line)) {
+            if(thisSong.getName().equalsIgnoreCase(line)) {
                 //When the song is found, it's then removed and the new list is returned
                 lines.remove(thisSong);
                 return lines;

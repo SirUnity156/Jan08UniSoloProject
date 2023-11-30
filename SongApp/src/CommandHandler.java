@@ -10,7 +10,7 @@ import java.util.List;
  * A string array containing all accepted inputs is searched through to see if user input is a valid command and the index of the valid command in the string array is saved.
  * That index is used to access an element from the Command interface array, each interface has an abstract method that has been set to execute one of the commands.
  * In effect, this allows me to create an array of methods which can be called using the interface array and their index. Something which is reminiscent of what is possible in the functional programming paradigm (An example would be Kotlin, which would have made me much happier if it was the language we used for this module)
- * Unfortunately, as Java is Object-Oriented, it doesn't allow methods to be treated as first-class objects. Hence, the heavy-handed approach I've had to take here.
+ * Unfortunately, as Java is Object-Oriented, it doesn't allow methods to be treated as first-class objects, hence the heavy-handed approach I've had to take here.
 */
 
 public class CommandHandler {
